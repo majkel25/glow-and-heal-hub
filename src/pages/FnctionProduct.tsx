@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ const FnctionProduct = () => {
   const product = getFnctionProductBySlug(slug || "");
   const [selectedImage, setSelectedImage] = useState(0);
   const { addToCart } = useCart();
+  const navigate = useNavigate();
 
   const handleAddToCart = () => {
     if (!product) return;
@@ -27,6 +28,18 @@ const FnctionProduct = () => {
       title: "Added to cart",
       description: `${product.name} has been added to your cart.`,
     });
+  };
+
+  const handleBuyNow = () => {
+    if (!product) return;
+    addToCart({
+      id: product.id,
+      name: product.name,
+      brand: product.brand,
+      price: product.price,
+      image: product.image,
+    });
+    navigate("/checkout");
   };
 
   if (!product) {
@@ -170,7 +183,13 @@ const FnctionProduct = () => {
                   <ShoppingBag className="w-5 h-5 mr-2" />
                   {product.badge === "Coming Soon" ? "Coming Soon" : "Add to Cart"}
                 </Button>
-                <Button size="lg" variant="outline" className="flex-1 py-6 sm:py-4 text-base">
+                <Button 
+                  size="lg" 
+                  variant="outline" 
+                  className="flex-1 py-6 sm:py-4 text-base"
+                  disabled={product.badge === "Coming Soon"}
+                  onClick={handleBuyNow}
+                >
                   Buy Now
                 </Button>
               </div>
