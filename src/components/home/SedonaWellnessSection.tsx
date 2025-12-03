@@ -138,10 +138,12 @@ export function SedonaWellnessSection() {
           <p className="text-muted-foreground mb-4">
             Interested in Sedona Wellness products? Contact us for pricing, demonstrations, and professional consultations.
           </p>
-          <Button variant="default" size="lg" className="group">
-            Request a Consultation
-            <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
-          </Button>
+          <Link to="/sedona/consultation">
+            <Button variant="default" size="lg" className="group">
+              Request a Consultation
+              <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
+            </Button>
+          </Link>
         </div>
       </div>
     </section>
