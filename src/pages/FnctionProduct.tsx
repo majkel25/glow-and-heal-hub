@@ -5,11 +5,29 @@ import { Button } from "@/components/ui/button";
 import { getFnctionProductBySlug, fnctionProducts } from "@/data/fnctionProducts";
 import { ArrowLeft, Check, ShoppingBag, Leaf, Shield, Truck } from "lucide-react";
 import { useState } from "react";
+import { useCart } from "@/contexts/CartContext";
+import { toast } from "@/hooks/use-toast";
 
 const FnctionProduct = () => {
   const { slug } = useParams<{ slug: string }>();
   const product = getFnctionProductBySlug(slug || "");
   const [selectedImage, setSelectedImage] = useState(0);
+  const { addToCart } = useCart();
+
+  const handleAddToCart = () => {
+    if (!product) return;
+    addToCart({
+      id: product.id,
+      name: product.name,
+      brand: product.brand,
+      price: product.price,
+      image: product.image,
+    });
+    toast({
+      title: "Added to cart",
+      description: `${product.name} has been added to your cart.`,
+    });
+  };
 
   if (!product) {
     return (
@@ -143,7 +161,12 @@ const FnctionProduct = () => {
 
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="lg" className="flex-1 group" disabled={product.badge === "Coming Soon"}>
+                <Button 
+                  size="lg" 
+                  className="flex-1 group" 
+                  disabled={product.badge === "Coming Soon"}
+                  onClick={handleAddToCart}
+                >
                   <ShoppingBag className="w-4 h-4 mr-2" />
                   {product.badge === "Coming Soon" ? "Coming Soon" : "Add to Cart"}
                 </Button>

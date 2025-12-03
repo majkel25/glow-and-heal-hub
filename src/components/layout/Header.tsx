@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Menu, X, ShoppingBag, Search, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useCart } from "@/contexts/CartContext";
 import logo from "@/assets/logo.png";
 
 const navigation = [
@@ -15,6 +16,7 @@ const navigation = [
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { totalItems, setIsCartOpen } = useCart();
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border/50">
@@ -49,11 +51,13 @@ export function Header() {
             <Button variant="ghost" size="icon" className="hidden sm:flex">
               <User className="w-5 h-5" />
             </Button>
-            <Button variant="ghost" size="icon" className="relative">
+            <Button variant="ghost" size="icon" className="relative" onClick={() => setIsCartOpen(true)}>
               <ShoppingBag className="w-5 h-5" />
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-[10px] font-semibold flex items-center justify-center text-primary-foreground">
-                0
-              </span>
+              {totalItems > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-[10px] font-semibold flex items-center justify-center text-primary-foreground">
+                  {totalItems}
+                </span>
+              )}
             </Button>
             
             {/* Mobile menu button */}
