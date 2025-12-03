@@ -1,74 +1,9 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Zap, Moon, Sparkles, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const sedonaProducts = [
-  {
-    name: "SEDONA PEMF Chair",
-    price: 12500,
-    image: "https://sedonawellness.com/cdn/shop/files/PEMFChair.jpg?v=1744720092&width=800",
-    description: "Luxury PEMF lounge chair combining pulsed electromagnetic field therapy with micro-vibration massage technology. Fully adjustable positioning for ultimate comfort and therapeutic benefit.",
-    badge: "Flagship",
-    category: "PEMF Chairs",
-  },
-  {
-    name: "SEDONA Elite PEMF Mat",
-    price: 6200,
-    image: "https://sedonawellness.com/cdn/shop/files/PEMFMatOpenPro.jpg?v=1715509049&width=800",
-    description: "Most advanced PEMF mat featuring DNA frequency technology for cellular and genetic healing. Frequency range 0.01-15,000 Hz with intensity up to 100 Gauss.",
-    badge: "Most Advanced",
-    category: "PEMF Mats",
-  },
-  {
-    name: "SEDONA Pro Plus PEMF Mat",
-    price: 5400,
-    image: "https://sedonawellness.com/cdn/shop/files/PEMFMatOpenProPlus_f7c3bc32-f0e2-4a86-8d95-b2f4f1e243be.jpg?v=1715416466&width=800",
-    description: "Professional-grade PEMF mat with enhanced frequency capabilities. Includes full-body mat and local applicator pillow for targeted therapy.",
-    badge: "Professional",
-    category: "PEMF Mats",
-  },
-  {
-    name: "SEDONA Pro PEMF Mat",
-    price: 4600,
-    image: "https://sedonawellness.com/cdn/shop/files/9-C06A7367copy_small_7b2bde45-81c6-4363-83a9-baf1b7ac85e9.jpg?v=1715509049&width=800",
-    description: "Entry-level professional PEMF mat system. Features multiple waveforms including sine, rectangular, and sawtooth for versatile therapy options.",
-    badge: "Best Value",
-    category: "PEMF Mats",
-  },
-  {
-    name: "SEDONA PEMF Face Mask",
-    price: 305,
-    image: "https://sedonawellness.com/cdn/shop/products/DSC03117small.jpg?v=1712147573&width=800",
-    description: "Revolutionary PEMF face mask for skin rejuvenation. Promotes cellular renewal, reduces fine lines, and enhances mental clarity through targeted cranial therapy.",
-    badge: "Beauty",
-    category: "Accessories",
-  },
-  {
-    name: "TimmyZzz PEMF Pillow",
-    price: 395,
-    image: "https://sedonawellness.com/cdn/shop/files/IMG_9803.jpg?v=1735835985&width=800",
-    description: "Sleep-focused PEMF pillow designed to help you fall asleep faster and wake refreshed. Drug-free solution for better sleep quality starting from the first night.",
-    badge: "Sleep Aid",
-    category: "Accessories",
-  },
-  {
-    name: "StimaWell EMS Back Mat",
-    price: 13200,
-    image: "https://sedonawellness.com/cdn/shop/files/stimawell2.png?v=1712152662&width=800",
-    description: "Advanced EMS (Electrical Muscle Stimulation) back therapy system. Clinically proven for pain relief, muscle strengthening, and rehabilitation.",
-    badge: "EMS Therapy",
-    category: "EMS Devices",
-  },
-  {
-    name: "StimaLounge EMS Chair",
-    price: 18700,
-    image: "https://sedonawellness.com/cdn/shop/products/IMG_8198_1.heic?v=1736253074&width=800",
-    description: "Premium EMS lounge chair for full-body electrical muscle stimulation therapy. Ideal for clinics and wellness centres seeking advanced rehabilitation equipment.",
-    badge: "Clinical Grade",
-    category: "EMS Devices",
-  },
-];
+import { sedonaProducts } from "@/data/sedonaProducts";
 
 const benefits = [
   {
@@ -97,7 +32,7 @@ export function SedonaWellnessSection() {
   const [hoveredProduct, setHoveredProduct] = useState<string | null>(null);
 
   return (
-    <section className="py-20 lg:py-28 bg-background">
+    <section id="sedona-wellness" className="py-20 lg:py-28 bg-background">
       <div className="container mx-auto px-4 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-16">
@@ -142,13 +77,14 @@ export function SedonaWellnessSection() {
         </div>
 
         {/* Products Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sedonaProducts.map((product, index) => (
-            <div
-              key={product.name}
+            <Link
+              key={product.id}
+              to={`/sedona/${product.id}`}
               className="group animate-fade-up"
               style={{ animationDelay: `${index * 75}ms` }}
-              onMouseEnter={() => setHoveredProduct(product.name)}
+              onMouseEnter={() => setHoveredProduct(product.id)}
               onMouseLeave={() => setHoveredProduct(null)}
             >
               <div className="relative aspect-square rounded-2xl overflow-hidden bg-card mb-4">
@@ -165,7 +101,7 @@ export function SedonaWellnessSection() {
                 <div
                   className={cn(
                     "absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/20 to-transparent transition-opacity duration-300 flex items-end p-4",
-                    hoveredProduct === product.name ? "opacity-100" : "opacity-0"
+                    hoveredProduct === product.id ? "opacity-100" : "opacity-0"
                   )}
                 >
                   <p className="text-primary-foreground text-sm line-clamp-3">
@@ -188,12 +124,12 @@ export function SedonaWellnessSection() {
                     £{product.price.toLocaleString()}
                   </span>
                   <Button variant="outline" size="sm" className="group/btn">
-                    Enquire
+                    View Details
                     <ArrowRight className="w-3 h-3 ml-1 transition-transform group-hover/btn:translate-x-1" />
                   </Button>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
 
