@@ -11,6 +11,7 @@ interface ProductCardProps {
   image: string;
   badge?: string;
   rating?: number;
+  description?: string;
 }
 
 export function ProductCard({
@@ -21,6 +22,7 @@ export function ProductCard({
   image,
   badge,
   rating = 4.8,
+  description,
 }: ProductCardProps) {
   const [isLiked, setIsLiked] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -81,6 +83,11 @@ export function ProductCard({
         <h3 className="font-medium text-foreground group-hover:text-primary transition-colors line-clamp-2">
           {name}
         </h3>
+        {description && (
+          <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+            {description}
+          </p>
+        )}
         <div className="flex items-center gap-2 mt-2">
           <span className="font-semibold text-foreground">
             ${price.toFixed(2)}
