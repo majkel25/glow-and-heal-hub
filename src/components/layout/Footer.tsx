@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Instagram, Facebook, Twitter, Mail, MapPin, Phone } from "lucide-react";
+import { Instagram, Facebook, Twitter, Mail, MapPin } from "lucide-react";
 
 const footerLinks = {
   shop: [
@@ -38,28 +38,24 @@ export function Footer() {
           <div className="lg:col-span-2">
             <Link to="/" className="flex items-center gap-2 mb-4">
               <div className="w-10 h-10 rounded-full bg-gradient-accent flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-lg">A</span>
+                <span className="text-primary-foreground font-bold text-lg">M</span>
               </div>
               <span className="text-xl font-semibold tracking-tight text-foreground">
-                Aesthetica
+                MeYounger
               </span>
             </Link>
             <p className="text-muted-foreground text-sm leading-relaxed mb-6 max-w-sm">
-              Premium medical-grade skincare and aesthetic products trusted by dermatologists 
-              and skincare professionals worldwide.
+              Official UK distributors of premium wellness and aesthetic products including 
+              F+NCTION supplements and Sedona Wellness PEMF therapy devices.
             </p>
             <div className="space-y-2 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-primary" />
-                <span>hello@aesthetica.com</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-primary" />
-                <span>1-800-AESTHET</span>
+                <span>hello@meyounger.co.uk</span>
               </div>
               <div className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-primary" />
-                <span>Los Angeles, California</span>
+                <span>48 Warwick Way, London, SW1V 1RY</span>
               </div>
             </div>
           </div>
@@ -118,9 +114,10 @@ export function Footer() {
 
         {/* Bottom */}
         <div className="mt-12 pt-8 border-t border-border flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p className="text-xs text-muted-foreground">
-            © 2024 Aesthetica. All rights reserved.
-          </p>
+          <div className="text-xs text-muted-foreground text-center sm:text-left">
+            <p>© 2024 ME YOUNGER LTD. All rights reserved.</p>
+            <p className="mt-1">Company Number: 12427090 | Registered Office: 48 Warwick Way, London, SW1V 1RY</p>
+          </div>
           <div className="flex items-center gap-4">
             {socialLinks.map((social) => (
               <a
