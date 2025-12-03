@@ -163,14 +163,14 @@ const FnctionProduct = () => {
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button 
                   size="lg" 
-                  className="flex-1 group" 
+                  className="flex-1 group py-6 sm:py-4 text-base" 
                   disabled={product.badge === "Coming Soon"}
                   onClick={handleAddToCart}
                 >
-                  <ShoppingBag className="w-4 h-4 mr-2" />
+                  <ShoppingBag className="w-5 h-5 mr-2" />
                   {product.badge === "Coming Soon" ? "Coming Soon" : "Add to Cart"}
                 </Button>
-                <Button size="lg" variant="outline" className="flex-1">
+                <Button size="lg" variant="outline" className="flex-1 py-6 sm:py-4 text-base">
                   Buy Now
                 </Button>
               </div>
