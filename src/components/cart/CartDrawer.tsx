@@ -2,6 +2,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/CartContext";
 import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export function CartDrawer() {
   const { items, isCartOpen, setIsCartOpen, removeFromCart, updateQuantity, totalPrice, totalItems } = useCart();
@@ -84,9 +85,11 @@ export function CartDrawer() {
                 <span className="text-muted-foreground">Subtotal</span>
                 <span className="font-semibold text-lg">£{totalPrice.toFixed(2)}</span>
               </div>
-              <Button className="w-full" size="lg">
-                Checkout
-              </Button>
+              <Link to="/checkout" onClick={() => setIsCartOpen(false)}>
+                <Button className="w-full" size="lg">
+                  Checkout
+                </Button>
+              </Link>
               <Button
                 variant="outline"
                 className="w-full"
