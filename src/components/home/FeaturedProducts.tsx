@@ -6,7 +6,7 @@ const products = [
   {
     name: "CALM",
     brand: "F+NCTION",
-    price: 143.00,
+    price: 115.00,
     image: "https://fnction.co/cdn/shop/files/New_Web_Images_EH-02.png?v=1752285638&width=800",
     badge: "Bestseller",
     description: "Rest & Recovery Drink with Marine Collagen - 780g Salted Chocolate",
@@ -14,7 +14,7 @@ const products = [
   {
     name: "CALM Starter Pack",
     brand: "F+NCTION",
-    price: 176.00,
+    price: 142.00,
     image: "https://fnction.co/cdn/shop/files/Fnction_Web_flow_DEV_EH-03_45f2cbde-1cec-41d0-a0c3-91f90448737d.jpg?v=1752683233&width=800",
     badge: "Value Pack",
     description: "Complete starter bundle with CALM and accessories",
@@ -22,7 +22,7 @@ const products = [
   {
     name: "FOCUS (4PK)",
     brand: "F+NCTION",
-    price: 20.00,
+    price: 16.00,
     image: "https://fnction.co/cdn/shop/files/Fnction_RTD_DEV_EHxTR-06.png?v=1753116501&width=800",
     badge: "Coming Soon",
     description: "Ready-to-drink focus formula - 4 pack",
