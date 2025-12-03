@@ -4,7 +4,7 @@ import heroImage from "@/assets/hero-aesthetic.jpg";
 
 const highlights = [
   { icon: Shield, text: "Dermatologist Approved" },
-  { icon: Truck, text: "Free Shipping $50+" },
+  { icon: Truck, text: "Free Shipping £50+" },
   { icon: Award, text: "Medical Grade" },
 ];
 
