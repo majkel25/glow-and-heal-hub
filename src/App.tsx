@@ -9,6 +9,8 @@ import Index from "./pages/Index";
 import SedonaProduct from "./pages/SedonaProduct";
 import SedonaConsultation from "./pages/SedonaConsultation";
 import FnctionProduct from "./pages/FnctionProduct";
+import Checkout from "./pages/Checkout";
+import OrderConfirmation from "./pages/OrderConfirmation";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +28,8 @@ const App = () => (
             <Route path="/sedona/:slug" element={<SedonaProduct />} />
             <Route path="/sedona/consultation" element={<SedonaConsultation />} />
             <Route path="/fnction/:slug" element={<FnctionProduct />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/order-confirmation" element={<OrderConfirmation />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
