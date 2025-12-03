@@ -5,28 +5,24 @@ const categories = [
     name: "Skincare",
     description: "Serums, moisturizers & treatments",
     count: "48 products",
-    color: "bg-sage-light",
     image: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=400&h=500&fit=crop&q=80",
   },
   {
     name: "Medical Devices",
     description: "Professional-grade tools",
     count: "24 products",
-    color: "bg-champagne-light",
     image: "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400&h=500&fit=crop&q=80",
   },
   {
     name: "Injectables",
     description: "Fillers & neurotoxins supplies",
     count: "16 products",
-    color: "bg-cream",
     image: "https://images.unsplash.com/photo-1612817288484-6f916006741a?w=400&h=500&fit=crop&q=80",
   },
   {
     name: "Professional",
     description: "Clinic & spa essentials",
     count: "32 products",
-    color: "bg-sage-light",
     image: "https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=400&h=500&fit=crop&q=80",
   },
 ];
