@@ -19,7 +19,7 @@ const features = [
   {
     icon: Truck,
     title: "Express Shipping",
-    description: "Free shipping on orders over $50 with 2-day delivery",
+    description: "Free shipping on orders over £50 with 2-day delivery",
   },
   {
     icon: RotateCcw,
