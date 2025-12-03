@@ -4,10 +4,13 @@ import { ArrowRight, Heart, ShoppingBag } from "lucide-react";
 import { fnctionProducts } from "@/data/fnctionProducts";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useCart } from "@/contexts/CartContext";
+import { toast } from "@/hooks/use-toast";
 
 export function FeaturedProducts() {
   const [likedProducts, setLikedProducts] = useState<string[]>([]);
   const [hoveredProduct, setHoveredProduct] = useState<string | null>(null);
+  const { addToCart } = useCart();
 
   const toggleLike = (id: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -15,6 +18,22 @@ export function FeaturedProducts() {
     setLikedProducts((prev) =>
       prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
     );
+  };
+
+  const handleAddToCart = (product: typeof fnctionProducts[0], e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    addToCart({
+      id: product.id,
+      name: product.name,
+      brand: product.brand,
+      price: product.price,
+      image: product.image,
+    });
+    toast({
+      title: "Added to cart",
+      description: `${product.name} has been added to your cart.`,
+    });
   };
 
   return (
@@ -83,9 +102,15 @@ export function FeaturedProducts() {
                     hoveredProduct === product.id ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
                   )}
                 >
-                  <Button className="w-full" variant="default" size="sm">
+                  <Button 
+                    className="w-full" 
+                    variant="default" 
+                    size="sm"
+                    onClick={(e) => handleAddToCart(product, e)}
+                    disabled={product.badge === "Coming Soon"}
+                  >
                     <ShoppingBag className="w-4 h-4 mr-2" />
-                    View Details
+                    {product.badge === "Coming Soon" ? "Coming Soon" : "Add to Cart"}
                   </Button>
                 </div>
               </div>
