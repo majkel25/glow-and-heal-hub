@@ -78,8 +78,8 @@ export function HeroSection() {
                   <Award className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">FDA Approved</p>
-                  <p className="text-xs text-muted-foreground">Clinical Formulas</p>
+                  <p className="text-sm font-semibold text-foreground">MHRA Registered</p>
+                  <p className="text-xs text-muted-foreground">UK Clinical Standards</p>
                 </div>
               </div>
             </div>
