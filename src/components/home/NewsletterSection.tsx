@@ -26,13 +26,13 @@ export function NewsletterSection() {
   return (
     <section className="py-20 lg:py-28 bg-background relative overflow-hidden">
       {/* Decorative background */}
-      <div className="absolute inset-0 bg-gradient-hero opacity-50" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-sage/5 rounded-full blur-3xl" />
+      <div className="absolute inset-0 bg-slate-blue-light/50" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/5 rounded-full blur-3xl" />
       
       <div className="container mx-auto px-4 lg:px-8 relative z-10">
         <div className="max-w-2xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-champagne-light rounded-full mb-6">
-            <Sparkles className="w-4 h-4 text-champagne" />
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-blue-light rounded-full mb-6">
+            <Sparkles className="w-4 h-4 text-primary" />
             <span className="text-sm font-medium text-foreground">Exclusive Offers</span>
           </div>
           

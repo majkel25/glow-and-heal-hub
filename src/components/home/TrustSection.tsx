@@ -35,7 +35,7 @@ const features = [
 
 export function TrustSection() {
   return (
-    <section className="py-20 lg:py-28 bg-sage-light">
+    <section className="py-20 lg:py-28 bg-slate-blue-light">
       <div className="container mx-auto px-4 lg:px-8">
         <div className="text-center mb-12 lg:mb-16">
           <span className="text-sm font-medium text-primary uppercase tracking-wider">
@@ -57,7 +57,7 @@ export function TrustSection() {
               className="bg-background rounded-2xl p-6 lg:p-8 shadow-soft hover:shadow-elevated transition-shadow duration-300 animate-fade-up"
               style={{ animationDelay: `${index * 100}ms` }}
             >
-              <div className="w-12 h-12 rounded-xl bg-sage-light flex items-center justify-center mb-4">
+              <div className="w-12 h-12 rounded-xl bg-slate-blue-light flex items-center justify-center mb-4">
                 <feature.icon className="w-6 h-6 text-primary" />
               </div>
               <h3 className="font-semibold text-foreground text-lg mb-2">

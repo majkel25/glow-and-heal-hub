@@ -52,7 +52,7 @@ export function Header() {
             </Button>
             <Button variant="ghost" size="icon" className="relative">
               <ShoppingBag className="w-5 h-5" />
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-champagne text-[10px] font-semibold flex items-center justify-center text-foreground">
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-[10px] font-semibold flex items-center justify-center text-primary-foreground">
                 0
               </span>
             </Button>
@@ -81,7 +81,7 @@ export function Header() {
               <a
                 key={item.name}
                 href={item.href}
-                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-sage-light rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-slate-blue-light rounded-lg transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 {item.name}

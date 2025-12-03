@@ -100,7 +100,7 @@ export function ProductCard({
                 key={i}
                 className={cn(
                   "w-3 h-3",
-                  i < Math.floor(rating) ? "text-champagne fill-champagne" : "text-border fill-border"
+                  i < Math.floor(rating) ? "text-accent fill-accent" : "text-border fill-border"
                 )}
                 viewBox="0 0 20 20"
               >
