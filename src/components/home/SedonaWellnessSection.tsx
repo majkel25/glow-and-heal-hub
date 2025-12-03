@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Zap, Moon, Sparkles, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { sedonaProducts } from "@/data/sedonaProducts";
+import pemfTherapyImage from "@/assets/pemf-therapy.webp";
 
 const benefits = [
   {
@@ -50,29 +51,39 @@ export function SedonaWellnessSection() {
         </div>
 
         {/* What is PEMF Section */}
-        <div className="bg-card rounded-3xl p-8 lg:p-12 mb-16">
-          <h3 className="text-2xl font-semibold text-foreground mb-6 text-center">
-            What is PEMF Therapy?
-          </h3>
-          <p className="text-muted-foreground text-center max-w-3xl mx-auto mb-10">
-            Pulsed Electromagnetic Field therapy uses electromagnetic waves to stimulate 
-            and encourage your body's natural recovery process. NASA-researched technology 
-            that's now available for clinical and home wellness use.
-          </p>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            {benefits.map((benefit, index) => (
-              <div
-                key={benefit.title}
-                className="text-center animate-fade-up"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                  <benefit.icon className="w-7 h-7 text-primary" />
+        <div className="bg-card rounded-3xl overflow-hidden mb-16">
+          <div className="relative h-64 lg:h-80">
+            <img 
+              src={pemfTherapyImage} 
+              alt="PEMF Therapy - Person receiving pulsed electromagnetic field treatment" 
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
+          </div>
+          <div className="p-8 lg:p-12 -mt-16 relative">
+            <h3 className="text-2xl font-semibold text-foreground mb-6 text-center">
+              What is PEMF Therapy?
+            </h3>
+            <p className="text-muted-foreground text-center max-w-3xl mx-auto mb-10">
+              Pulsed Electromagnetic Field therapy uses electromagnetic waves to stimulate 
+              and encourage your body's natural recovery process. NASA-researched technology 
+              that's now available for clinical and home wellness use.
+            </p>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+              {benefits.map((benefit, index) => (
+                <div
+                  key={benefit.title}
+                  className="text-center animate-fade-up"
+                  style={{ animationDelay: `${index * 100}ms` }}
+                >
+                  <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                    <benefit.icon className="w-7 h-7 text-primary" />
+                  </div>
+                  <h4 className="font-medium text-foreground mb-2">{benefit.title}</h4>
+                  <p className="text-sm text-muted-foreground">{benefit.description}</p>
                 </div>
-                <h4 className="font-medium text-foreground mb-2">{benefit.title}</h4>
-                <p className="text-sm text-muted-foreground">{benefit.description}</p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 
