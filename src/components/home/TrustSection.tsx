@@ -13,8 +13,8 @@ const features = [
   },
   {
     icon: Award,
-    title: "FDA Approved",
-    description: "Medical-grade formulations meeting strict standards",
+    title: "MHRA Registered",
+    description: "Medical-grade formulations meeting UK regulatory standards",
   },
   {
     icon: Truck,
