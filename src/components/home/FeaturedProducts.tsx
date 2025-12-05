@@ -42,7 +42,7 @@ export function FeaturedProducts() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-12">
           <div>
             <span className="text-sm font-medium text-primary uppercase tracking-wider">
-              Official Distributor
+              MeYounger an Official UK Distributor
             </span>
             <h2 className="text-3xl lg:text-4xl font-semibold text-foreground mt-2">
               F+NCTION Products
