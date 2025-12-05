@@ -39,7 +39,7 @@ const SedonaConsultation = () => {
     await new Promise((resolve) => setTimeout(resolve, 1500));
 
     toast({
-      title: "Consultation Request Received",
+      title: "Callback Request Received",
       description: "Thank you for your interest! Our team will contact you within 24-48 hours.",
     });
 
@@ -93,7 +93,7 @@ const SedonaConsultation = () => {
                 Sedona Wellness
               </span>
               <h1 className="text-3xl lg:text-5xl font-semibold text-foreground mt-2">
-                Request a Consultation
+                Request a Callback
               </h1>
               <p className="text-lg text-muted-foreground mt-4">
                 Interested in PEMF therapy? Our specialists are here to help you find the perfect 
@@ -223,7 +223,7 @@ const SedonaConsultation = () => {
                 </div>
 
                 <Button type="submit" size="lg" className="w-full sm:w-auto" disabled={isSubmitting}>
-                  {isSubmitting ? "Submitting..." : "Request Consultation"}
+                  {isSubmitting ? "Submitting..." : "Request a Callback"}
                 </Button>
 
                 <p className="text-xs text-muted-foreground">
