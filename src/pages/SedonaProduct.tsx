@@ -107,7 +107,7 @@ const SedonaProduct = () => {
                   £{product.price.toLocaleString()}
                 </span>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Contact us for pricing and availability
+                  Contact us for availability
                 </p>
               </div>
 
