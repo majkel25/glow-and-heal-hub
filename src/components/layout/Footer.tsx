@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Instagram, Facebook, Twitter, Mail, MapPin } from "lucide-react";
+import { Instagram, Facebook, Twitter, Mail, MapPin, Phone } from "lucide-react";
 import logo from "@/assets/logo.png";
 
 const footerLinks = {
@@ -48,10 +48,14 @@ export function Footer() {
               F+NCTION supplements and Sedona Wellness PEMF therapy devices.
             </p>
             <div className="space-y-2 text-sm text-muted-foreground">
-              <div className="flex items-center gap-2">
+              <a href="tel:+442039082012" className="flex items-center gap-2 hover:text-foreground transition-colors">
+                <Phone className="w-4 h-4 text-primary" />
+                <span>+44 203 908 2012</span>
+              </a>
+              <a href="mailto:hello@meyounger.co.uk" className="flex items-center gap-2 hover:text-foreground transition-colors">
                 <Mail className="w-4 h-4 text-primary" />
                 <span>hello@meyounger.co.uk</span>
-              </div>
+              </a>
               <div className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-primary" />
                 <span>48 Warwick Way, London, SW1V 1RY</span>

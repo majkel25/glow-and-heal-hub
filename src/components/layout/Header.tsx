@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Menu, X, ShoppingBag, Search, User } from "lucide-react";
+import { Menu, X, ShoppingBag, Search, User, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/contexts/CartContext";
@@ -45,6 +45,13 @@ export function Header() {
 
           {/* Actions */}
           <div className="flex items-center gap-2">
+            <a 
+              href="tel:+442039082012" 
+              className="hidden md:flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Phone className="w-4 h-4" />
+              <span>+44 203 908 2012</span>
+            </a>
             <Button variant="ghost" size="icon" className="hidden sm:flex">
               <Search className="w-5 h-5" />
             </Button>
