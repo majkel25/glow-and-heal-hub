@@ -265,11 +265,11 @@ const SedonaConsultation = () => {
                     <span>hello@meyounger.co.uk</span>
                   </a>
                   <a
-                    href="tel:+442012345678"
+                    href="tel:+442039082012"
                     className="flex items-center gap-3 text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <Phone className="w-5 h-5 text-primary" />
-                    <span>+44 20 1234 5678</span>
+                    <span>+44 203 908 2012</span>
                   </a>
                   <div className="flex items-start gap-3 text-muted-foreground">
                     <MapPin className="w-5 h-5 text-primary shrink-0" />
