@@ -11,7 +11,7 @@ const navigation = [
   { name: "Skincare", href: "#categories" },
   { name: "Medical", href: "#categories" },
   { name: "Devices", href: "#sedona-wellness" },
-  { name: "About", href: "#about" },
+  { name: "About", href: "/about" },
 ];
 
 export function Header() {
@@ -32,15 +32,25 @@ export function Header() {
 
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center gap-8">
-            {navigation.map((item) => (
-              <a
-                key={item.name}
-                href={item.href}
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
-              >
-                {item.name}
-              </a>
-            ))}
+            {navigation.map((item) => 
+              item.href.startsWith('/') ? (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
+                >
+                  {item.name}
+                </Link>
+              ) : (
+                <a
+                  key={item.name}
+                  href={item.href}
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
+                >
+                  {item.name}
+                </a>
+              )
+            )}
           </div>
 
           {/* Actions */}
@@ -87,16 +97,27 @@ export function Header() {
           )}
         >
           <div className="flex flex-col gap-2 pt-2">
-            {navigation.map((item) => (
-              <a
-                key={item.name}
-                href={item.href}
-                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-slate-blue-light rounded-lg transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                {item.name}
-              </a>
-            ))}
+            {navigation.map((item) => 
+              item.href.startsWith('/') ? (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-slate-blue-light rounded-lg transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {item.name}
+                </Link>
+              ) : (
+                <a
+                  key={item.name}
+                  href={item.href}
+                  className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-slate-blue-light rounded-lg transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {item.name}
+                </a>
+              )
+            )}
           </div>
         </div>
       </nav>
