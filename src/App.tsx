@@ -7,6 +7,7 @@ import { CartProvider } from "@/contexts/CartContext";
 import { CartDrawer } from "@/components/cart/CartDrawer";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import Index from "./pages/Index";
+import About from "./pages/About";
 import SedonaProduct from "./pages/SedonaProduct";
 import SedonaConsultation from "./pages/SedonaConsultation";
 import FnctionProduct from "./pages/FnctionProduct";
@@ -27,6 +28,7 @@ const App = () => (
           <ScrollToTop />
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/about" element={<About />} />
             <Route path="/sedona/:slug" element={<SedonaProduct />} />
             <Route path="/sedona/consultation" element={<SedonaConsultation />} />
             <Route path="/fnction/:slug" element={<FnctionProduct />} />
