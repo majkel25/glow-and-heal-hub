@@ -10,7 +10,7 @@ const navigation = [
   { name: "Shop All", href: "#products" },
   { name: "Skincare", href: "#categories" },
   { name: "Medical", href: "#categories" },
-  { name: "Devices", href: "#categories" },
+  { name: "Devices", href: "#sedona-wellness" },
   { name: "About", href: "#about" },
 ];
 
