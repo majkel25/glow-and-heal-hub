@@ -10,6 +10,7 @@ import { ArrowLeft, ShoppingBag, Lock, Truck, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { PayPalButton } from "@/components/checkout/PayPalButton";
+import { supabase } from "@/integrations/supabase/client";
 
 const checkoutSchema = z.object({
   email: z.string().trim().email("Please enter a valid email address"),
@@ -69,7 +70,37 @@ const Checkout = () => {
     return result.success;
   };
 
-  const handlePayPalSuccess = (orderId: string) => {
+  const handlePayPalSuccess = async (orderId: string) => {
+    // Send order confirmation emails
+    try {
+      await supabase.functions.invoke("send-order-email", {
+        body: {
+          orderId,
+          customerEmail: form.email,
+          customerName: `${form.firstName} ${form.lastName}`,
+          items: items.map((item) => ({
+            name: item.name,
+            quantity: item.quantity,
+            unit_amount: item.price,
+          })),
+          subtotal: totalPrice,
+          shipping: shippingCost,
+          total: totalPrice + shippingCost,
+          currency: "GBP",
+          shippingAddress: {
+            address: form.address,
+            city: form.city,
+            postcode: form.postcode,
+            country: "United Kingdom",
+          },
+        },
+      });
+      console.log("Order confirmation emails sent");
+    } catch (emailError) {
+      console.error("Failed to send order confirmation email:", emailError);
+      // Don't block success flow if email fails
+    }
+
     clearCart();
     toast({
       title: "Payment successful!",
