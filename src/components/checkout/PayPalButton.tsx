@@ -551,12 +551,15 @@ export function PayPalButton({
     })();
   }, [sdkReady]);
 
-  // Default to Apple Pay when it's available (but don't override user choice)
+  // Default to Apple Pay on initial eligibility check (only once)
+  const hasSetInitialMethod = useRef(false);
   useEffect(() => {
-    if (applePayEligible && paymentMethod === "paypal") {
+    if (applePayEligible && !hasSetInitialMethod.current) {
       setPaymentMethod("applepay");
+      hasSetInitialMethod.current = true;
     }
 
+    // Fall back to PayPal if Apple Pay becomes ineligible while selected
     if (!applePayEligible && paymentMethod === "applepay") {
       setPaymentMethod("paypal");
     }
