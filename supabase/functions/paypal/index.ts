@@ -51,6 +51,10 @@ async function createOrder(accessToken: string, orderData: {
     },
     body: JSON.stringify({
       intent: 'CAPTURE',
+      application_context: {
+        landing_page: 'BILLING',
+        user_action: 'PAY_NOW',
+      },
       purchase_units: [{
         amount: {
           currency_code: currency,
@@ -68,6 +72,7 @@ async function createOrder(accessToken: string, orderData: {
         },
         items: items.map(item => ({
           name: item.name,
+          category: 'PHYSICAL_GOODS',
           quantity: item.quantity.toString(),
           unit_amount: {
             currency_code: currency,
