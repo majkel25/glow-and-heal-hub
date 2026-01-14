@@ -53,6 +53,12 @@ export function PayPalButton({
   const paypalRef = useRef<HTMLDivElement>(null);
   const cardFieldsInstanceRef = useRef<ReturnType<NonNullable<Window["paypal"]>["CardFields"]> | null>(null);
   const lastOrderIdRef = useRef<string | null>(null);
+  
+  // Card field container refs
+  const cardNameRef = useRef<HTMLDivElement>(null);
+  const cardNumberRef = useRef<HTMLDivElement>(null);
+  const cardExpiryRef = useRef<HTMLDivElement>(null);
+  const cardCvvRef = useRef<HTMLDivElement>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [sdkReady, setSdkReady] = useState(false);
@@ -331,89 +337,98 @@ export function PayPalButton({
     });
   }, [sdkReady, createOrder, captureOrder, onSuccess, onError, disabled, reconcileOrderIfPossible]);
 
-  // Initialize Card Fields
+  // Initialize Card Fields - wait for DOM elements to exist
   useEffect(() => {
     if (!sdkReady || !window.paypal?.CardFields || disabled || paymentMethod !== "card") {
       setCardFieldsReady(false);
       return;
     }
 
-    const cardFields = window.paypal.CardFields({
-      createOrder: async () => {
-        try {
-          return await createOrder();
-        } catch (err) {
+    // Wait for next tick to ensure DOM elements are rendered
+    const timeoutId = setTimeout(() => {
+      // Check if all container refs exist
+      if (!cardNameRef.current || !cardNumberRef.current || !cardExpiryRef.current || !cardCvvRef.current) {
+        console.error("Card field containers not found in DOM");
+        return;
+      }
+
+      const cardFields = window.paypal!.CardFields({
+        createOrder: async () => {
+          try {
+            return await createOrder();
+          } catch (err) {
+            const raw = toSafeString(err);
+            console.error("Error creating order for card payment:", err);
+            setLastPayPalError(raw);
+            onError(deriveUserMessage(raw));
+            throw err;
+          }
+        },
+        onApprove: async (data) => {
+          try {
+            lastOrderIdRef.current = data.orderID;
+            setLastOrderId(data.orderID);
+            const capturedId = await captureOrder(data.orderID);
+            onSuccess(capturedId);
+          } catch (err) {
+            const raw = toSafeString(err);
+            console.error("Error capturing card payment:", err);
+            setLastPayPalError(raw);
+            onError(deriveUserMessage(raw));
+          } finally {
+            setIsCardProcessing(false);
+          }
+        },
+        onError: (err) => {
           const raw = toSafeString(err);
-          console.error("Error creating order for card payment:", err);
+          console.error("Card payment error:", err);
           setLastPayPalError(raw);
-          onError(deriveUserMessage(raw));
-          throw err;
-        }
-      },
-      onApprove: async (data) => {
-        try {
-          lastOrderIdRef.current = data.orderID;
-          setLastOrderId(data.orderID);
-          const capturedId = await captureOrder(data.orderID);
-          onSuccess(capturedId);
-        } catch (err) {
-          const raw = toSafeString(err);
-          console.error("Error capturing card payment:", err);
-          setLastPayPalError(raw);
-          onError(deriveUserMessage(raw));
-        } finally {
           setIsCardProcessing(false);
-        }
-      },
-      onError: (err) => {
-        const raw = toSafeString(err);
-        console.error("Card payment error:", err);
-        setLastPayPalError(raw);
-        setIsCardProcessing(false);
-        onError(deriveUserMessage(raw));
-      },
-      style: {
-        input: {
-          "font-size": "14px",
-          "font-family": "inherit",
-          color: "hsl(var(--foreground))",
+          onError(deriveUserMessage(raw));
         },
-        ".invalid": {
-          color: "hsl(var(--destructive))",
+        style: {
+          input: {
+            "font-size": "14px",
+            "font-family": "inherit",
+            color: "hsl(var(--foreground))",
+          },
+          ".invalid": {
+            color: "hsl(var(--destructive))",
+          },
         },
-      },
-    });
-
-    if (!cardFields.isEligible()) {
-      setCardFieldsEligible(false);
-      console.log("Card Fields not eligible for this account");
-      return;
-    }
-
-    setCardFieldsEligible(true);
-    cardFieldsInstanceRef.current = cardFields;
-
-    // Clear previous card fields
-    const containers = ["#card-name-field", "#card-number-field", "#card-expiry-field", "#card-cvv-field"];
-    containers.forEach(sel => {
-      const el = document.querySelector(sel);
-      if (el) el.innerHTML = "";
-    });
-
-    // Render card fields
-    Promise.all([
-      cardFields.NameField({ placeholder: "Name on card" }).render("#card-name-field"),
-      cardFields.NumberField({ placeholder: "Card number" }).render("#card-number-field"),
-      cardFields.ExpiryField({ placeholder: "MM/YY" }).render("#card-expiry-field"),
-      cardFields.CVVField({ placeholder: "CVV" }).render("#card-cvv-field"),
-    ])
-      .then(() => setCardFieldsReady(true))
-      .catch((err) => {
-        console.error("Error rendering card fields:", err);
-        setCardFieldsReady(false);
       });
 
+      if (!cardFields.isEligible()) {
+        setCardFieldsEligible(false);
+        console.log("Card Fields not eligible for this account");
+        return;
+      }
+
+      setCardFieldsEligible(true);
+      cardFieldsInstanceRef.current = cardFields;
+
+      // Clear previous card fields content
+      cardNameRef.current.innerHTML = "";
+      cardNumberRef.current.innerHTML = "";
+      cardExpiryRef.current.innerHTML = "";
+      cardCvvRef.current.innerHTML = "";
+
+      // Render card fields using element references directly
+      Promise.all([
+        cardFields.NameField({ placeholder: "Name on card" }).render(cardNameRef.current),
+        cardFields.NumberField({ placeholder: "Card number" }).render(cardNumberRef.current),
+        cardFields.ExpiryField({ placeholder: "MM/YY" }).render(cardExpiryRef.current),
+        cardFields.CVVField({ placeholder: "CVV" }).render(cardCvvRef.current),
+      ])
+        .then(() => setCardFieldsReady(true))
+        .catch((err) => {
+          console.error("Error rendering card fields:", err);
+          setCardFieldsReady(false);
+        });
+    }, 100); // Small delay to ensure DOM is ready
+
     return () => {
+      clearTimeout(timeoutId);
       cardFieldsInstanceRef.current = null;
     };
   }, [sdkReady, paymentMethod, createOrder, captureOrder, onSuccess, onError, disabled]);
@@ -498,33 +513,33 @@ export function PayPalButton({
           {cardFieldsEligible && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="card-name-field">Name on Card</Label>
+                <Label>Name on Card</Label>
                 <div 
-                  id="card-name-field" 
+                  ref={cardNameRef}
                   className="min-h-[40px] border border-input rounded-md px-3 py-2 bg-background"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="card-number-field">Card Number</Label>
+                <Label>Card Number</Label>
                 <div 
-                  id="card-number-field" 
+                  ref={cardNumberRef}
                   className="min-h-[40px] border border-input rounded-md px-3 py-2 bg-background"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="card-expiry-field">Expiry</Label>
+                  <Label>Expiry</Label>
                   <div 
-                    id="card-expiry-field" 
+                    ref={cardExpiryRef}
                     className="min-h-[40px] border border-input rounded-md px-3 py-2 bg-background"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="card-cvv-field">CVV</Label>
+                  <Label>CVV</Label>
                   <div 
-                    id="card-cvv-field" 
+                    ref={cardCvvRef}
                     className="min-h-[40px] border border-input rounded-md px-3 py-2 bg-background"
                   />
                 </div>
