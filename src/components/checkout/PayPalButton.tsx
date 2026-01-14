@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { CartItem } from "@/contexts/CartContext";
-import { Loader2, CreditCard } from "lucide-react";
+import { Loader2, CreditCard, Apple } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
 import { Label } from "@/components/ui/label";
 
 declare global {
@@ -29,7 +28,45 @@ declare global {
         CVVField: (opts?: { placeholder?: string }) => { render: (el: string | HTMLElement) => Promise<void> };
         submit: () => Promise<void>;
       };
+      Applepay: () => {
+        config: () => Promise<{
+          isEligible: boolean;
+          countryCode: string;
+          currencyCode: string;
+          merchantCapabilities: string[];
+          supportedNetworks: string[];
+        }>;
+        validateMerchant: (opts: { validationUrl: string; displayName: string }) => Promise<{ merchantSession: unknown }>;
+        confirmOrder: (opts: { orderId: string; token: unknown; billingContact?: unknown }) => Promise<{ approveApplePayPayment: () => Promise<void> }>;
+      };
     };
+    ApplePaySession?: {
+      new (version: number, paymentRequest: ApplePayPaymentRequest): ApplePaySessionInstance;
+      STATUS_SUCCESS: number;
+      STATUS_FAILURE: number;
+      canMakePayments: () => boolean;
+      supportsVersion: (version: number) => boolean;
+    };
+  }
+
+  interface ApplePayPaymentRequest {
+    countryCode: string;
+    currencyCode: string;
+    merchantCapabilities: string[];
+    supportedNetworks: string[];
+    total: { label: string; amount: string; type: string };
+    requiredBillingContactFields?: string[];
+    requiredShippingContactFields?: string[];
+  }
+
+  interface ApplePaySessionInstance {
+    begin: () => void;
+    abort: () => void;
+    completeMerchantValidation: (merchantSession: unknown) => void;
+    completePayment: (status: number) => void;
+    onvalidatemerchant: ((event: { validationURL: string }) => void) | null;
+    onpaymentauthorized: ((event: { payment: { token: unknown; billingContact?: unknown } }) => void) | null;
+    oncancel: (() => void) | null;
   }
 }
 
@@ -72,7 +109,17 @@ export function PayPalButton({
   const [cardFieldsEligible, setCardFieldsEligible] = useState(false);
   const [cardFieldsReady, setCardFieldsReady] = useState(false);
   const [isCardProcessing, setIsCardProcessing] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"paypal" | "card">("paypal");
+  const [paymentMethod, setPaymentMethod] = useState<"paypal" | "card" | "applepay">("paypal");
+
+  // Apple Pay state
+  const [applePayEligible, setApplePayEligible] = useState(false);
+  const [applePayConfig, setApplePayConfig] = useState<{
+    countryCode: string;
+    currencyCode: string;
+    merchantCapabilities: string[];
+    supportedNetworks: string[];
+  } | null>(null);
+  const [isApplePayProcessing, setIsApplePayProcessing] = useState(false);
 
   const showDebug = import.meta.env.DEV;
 
@@ -249,7 +296,7 @@ export function PayPalButton({
       "client-id": paypalClientId,
       currency: "GBP",
       intent: "capture",
-      components: "buttons,card-fields",
+      components: "buttons,card-fields,applepay",
       locale: "en_GB",
     });
 
@@ -465,6 +512,130 @@ export function PayPalButton({
     return () => cancelAnimationFrame(raf);
   }, [cardFieldsEligible, paymentMethod, disabled]);
 
+  // Check Apple Pay eligibility
+  useEffect(() => {
+    if (!sdkReady || !window.paypal?.Applepay) {
+      setApplePayEligible(false);
+      return;
+    }
+
+    // Check if browser supports Apple Pay
+    if (!window.ApplePaySession || !window.ApplePaySession.canMakePayments()) {
+      console.log("Apple Pay not supported in this browser");
+      setApplePayEligible(false);
+      return;
+    }
+
+    (async () => {
+      try {
+        const applepay = window.paypal!.Applepay();
+        const config = await applepay.config();
+        
+        if (config.isEligible) {
+          setApplePayEligible(true);
+          setApplePayConfig({
+            countryCode: config.countryCode,
+            currencyCode: config.currencyCode,
+            merchantCapabilities: config.merchantCapabilities,
+            supportedNetworks: config.supportedNetworks,
+          });
+          console.log("Apple Pay is eligible", config);
+        } else {
+          setApplePayEligible(false);
+          console.log("Apple Pay not eligible for this merchant");
+        }
+      } catch (err) {
+        console.error("Error checking Apple Pay eligibility:", err);
+        setApplePayEligible(false);
+      }
+    })();
+  }, [sdkReady]);
+
+  const handleApplePayClick = async () => {
+    if (!window.paypal?.Applepay || !window.ApplePaySession || !applePayConfig) return;
+
+    setIsApplePayProcessing(true);
+    setLastPayPalError(null);
+
+    try {
+      const applepay = window.paypal.Applepay();
+      const orderAmount = (totalAmount + shippingCost).toFixed(2);
+
+      const paymentRequest: ApplePayPaymentRequest = {
+        countryCode: applePayConfig.countryCode || "GB",
+        currencyCode: "GBP",
+        merchantCapabilities: applePayConfig.merchantCapabilities,
+        supportedNetworks: applePayConfig.supportedNetworks,
+        requiredBillingContactFields: ["name", "postalAddress"],
+        requiredShippingContactFields: [],
+        total: {
+          label: "Glow & Heal Hub",
+          amount: orderAmount,
+          type: "final",
+        },
+      };
+
+      const session = new window.ApplePaySession(4, paymentRequest);
+
+      session.onvalidatemerchant = async (event) => {
+        try {
+          const { merchantSession } = await applepay.validateMerchant({
+            validationUrl: event.validationURL,
+            displayName: "Glow & Heal Hub",
+          });
+          session.completeMerchantValidation(merchantSession);
+        } catch (err) {
+          console.error("Merchant validation failed:", err);
+          session.abort();
+          setIsApplePayProcessing(false);
+          onError("Apple Pay merchant validation failed. Please try another payment method.");
+        }
+      };
+
+      session.onpaymentauthorized = async (event) => {
+        try {
+          // Create PayPal order first
+          const orderId = await createOrder();
+          lastOrderIdRef.current = orderId;
+          setLastOrderId(orderId);
+
+          // Confirm the order with Apple Pay token
+          const confirmResult = await applepay.confirmOrder({
+            orderId,
+            token: event.payment.token,
+            billingContact: event.payment.billingContact,
+          });
+
+          await confirmResult.approveApplePayPayment();
+          session.completePayment(window.ApplePaySession!.STATUS_SUCCESS);
+
+          // Capture the order
+          const capturedId = await captureOrder(orderId);
+          onSuccess(capturedId);
+        } catch (err) {
+          console.error("Apple Pay authorization failed:", err);
+          session.completePayment(window.ApplePaySession!.STATUS_FAILURE);
+          setLastPayPalError(toSafeString(err));
+          onError("Apple Pay payment failed. Please try another payment method.");
+        } finally {
+          setIsApplePayProcessing(false);
+        }
+      };
+
+      session.oncancel = () => {
+        console.log("Apple Pay cancelled by user");
+        setIsApplePayProcessing(false);
+      };
+
+      session.begin();
+    } catch (err) {
+      console.error("Apple Pay error:", err);
+      setLastPayPalError(toSafeString(err));
+      setIsApplePayProcessing(false);
+      onError("Apple Pay is not available. Please try another payment method.");
+    }
+  };
+
   const handleCardSubmit = async () => {
     if (!cardFieldsInstanceRef.current) return;
 
@@ -502,11 +673,11 @@ export function PayPalButton({
   return (
     <div className={disabled ? "opacity-50 pointer-events-none" : ""}>
       {/* Payment method tabs */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex flex-wrap gap-2 mb-4">
         <Button
           type="button"
           variant={paymentMethod === "paypal" ? "default" : "outline"}
-          className="flex-1"
+          className="flex-1 min-w-[100px]"
           onClick={() => setPaymentMethod("paypal")}
         >
           <img 
@@ -519,17 +690,63 @@ export function PayPalButton({
         <Button
           type="button"
           variant={paymentMethod === "card" ? "default" : "outline"}
-          className="flex-1"
+          className="flex-1 min-w-[100px]"
           onClick={() => setPaymentMethod("card")}
         >
           <CreditCard className="w-5 h-5 mr-2" />
           Card
         </Button>
+        {applePayEligible && (
+          <Button
+            type="button"
+            variant={paymentMethod === "applepay" ? "default" : "outline"}
+            className="flex-1 min-w-[100px]"
+            onClick={() => setPaymentMethod("applepay")}
+          >
+            <Apple className="w-5 h-5 mr-2" />
+            Apple Pay
+          </Button>
+        )}
       </div>
 
       {/* PayPal button */}
       {paymentMethod === "paypal" && (
         <div ref={paypalRef} className="min-h-[150px]" />
+      )}
+
+      {/* Apple Pay */}
+      {paymentMethod === "applepay" && (
+        <div className="space-y-4">
+          {applePayEligible ? (
+            <Button
+              type="button"
+              className="w-full bg-black hover:bg-black/90 text-white"
+              onClick={handleApplePayClick}
+              disabled={isApplePayProcessing}
+            >
+              {isApplePayProcessing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Apple className="w-5 h-5 mr-2" />
+                  Pay with Apple Pay
+                </>
+              )}
+            </Button>
+          ) : (
+            <div className="text-sm text-foreground bg-muted/50 border border-border rounded-lg p-3">
+              Apple Pay is not available. This may be because:
+              <ul className="list-disc ml-5 mt-2 space-y-1">
+                <li>You're not using Safari on a Mac or iOS device</li>
+                <li>Domain verification is pending in PayPal Dashboard</li>
+                <li>Apple Pay is not enabled for your PayPal account</li>
+              </ul>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Card fields */}
@@ -608,9 +825,14 @@ export function PayPalButton({
               env: <code>{paypalEnv}</code>
             </div>
           )}
-          {cardFieldsEligible !== undefined && paymentMethod === "card" && (
+          {paymentMethod === "card" && (
             <div className="mt-1">
               card fields eligible: <code>{String(cardFieldsEligible)}</code>
+            </div>
+          )}
+          {paymentMethod === "applepay" && (
+            <div className="mt-1">
+              apple pay eligible: <code>{String(applePayEligible)}</code>
             </div>
           )}
           {lastOrderId && (
