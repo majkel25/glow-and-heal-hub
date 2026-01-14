@@ -42,7 +42,7 @@ async function sendEmail(
     filename: string;
     content: string; // base64
     content_type: string;
-    cid?: string;
+    content_id?: string;
   }>
 ) {
   const payload: Record<string, unknown> = { from, to, subject, html };
@@ -218,13 +218,20 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Sending order confirmation email for order:", orderData.orderId);
 
     const logoAttachmentBase64 = await getLogoBase64();
+    console.log(
+      "Logo attachment present:",
+      Boolean(logoAttachmentBase64),
+      "base64Length:",
+      logoAttachmentBase64?.length ?? 0
+    );
+
     const attachments = logoAttachmentBase64
       ? [
           {
             filename: "logo.png",
             content: logoAttachmentBase64,
             content_type: "image/png",
-            cid: "meyoungerlogo",
+            content_id: "meyoungerlogo",
           },
         ]
       : undefined;
