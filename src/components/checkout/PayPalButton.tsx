@@ -48,12 +48,17 @@ export function PayPalButton({
       return;
     }
 
-    const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
-    if (existingScript) {
+    // Check if SDK already loaded with correct sandbox URL
+    const existingScript = document.querySelector('script[src*="sandbox.paypal.com/sdk/js"]');
+    if (existingScript && window.paypal) {
       setSdkReady(true);
       setIsLoading(false);
       return;
     }
+    
+    // Remove any existing PayPal scripts (might be wrong environment)
+    const oldScripts = document.querySelectorAll('script[src*="paypal.com/sdk/js"]');
+    oldScripts.forEach(s => s.remove());
 
     const script = document.createElement("script");
     // Use sandbox for testing - remove &debug=true for production
