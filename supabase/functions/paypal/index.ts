@@ -37,8 +37,10 @@ async function createOrder(accessToken: string, orderData: {
   amount: number;
   currency: string;
   items: Array<{ name: string; quantity: number; unit_amount: number }>;
+  returnUrl?: string;
+  cancelUrl?: string;
 }): Promise<{ id: string; status: string }> {
-  const { amount, currency, items } = orderData;
+  const { amount, currency, items, returnUrl, cancelUrl } = orderData;
   
   const itemTotal = items.reduce((sum, item) => sum + (item.unit_amount * item.quantity), 0);
   const shipping = amount - itemTotal;
@@ -54,6 +56,8 @@ async function createOrder(accessToken: string, orderData: {
       application_context: {
         landing_page: 'BILLING',
         user_action: 'PAY_NOW',
+        ...(returnUrl ? { return_url: returnUrl } : {}),
+        ...(cancelUrl ? { cancel_url: cancelUrl } : {}),
       },
       purchase_units: [{
         amount: {

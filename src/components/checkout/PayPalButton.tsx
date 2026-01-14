@@ -37,6 +37,10 @@ export function PayPalButton({
   const paypalRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [sdkReady, setSdkReady] = useState(false);
+  const [lastOrderId, setLastOrderId] = useState<string | null>(null);
+  const [lastPayPalError, setLastPayPalError] = useState<string | null>(null);
+
+  const showDebug = import.meta.env.DEV;
 
   // Load PayPal SDK
   useEffect(() => {
@@ -98,9 +102,13 @@ export function PayPalButton({
         },
         createOrder: async () => {
           try {
+            setLastPayPalError(null);
+
             const orderData = {
               amount: totalAmount + shippingCost,
               currency: "GBP",
+              returnUrl: `${window.location.origin}/order-confirmation`,
+              cancelUrl: `${window.location.origin}/checkout`,
               items: items.map((item) => ({
                 name: item.name,
                 quantity: item.quantity,
@@ -113,8 +121,10 @@ export function PayPalButton({
             });
 
             if (error) throw new Error(error.message);
-            if (!data?.orderId) throw new Error(`No order ID returned: ${JSON.stringify(data)}`);
+            if (!data?.orderId)
+              throw new Error(`No order ID returned: ${JSON.stringify(data)}`);
 
+            setLastOrderId(data.orderId);
             return data.orderId;
           } catch (err) {
             const message =
@@ -122,6 +132,7 @@ export function PayPalButton({
                 ? err.message
                 : `Failed to create order: ${JSON.stringify(err)}`;
             console.error("Error creating PayPal order:", err);
+            setLastPayPalError(message);
             onError(message);
             throw err;
           }
@@ -147,6 +158,7 @@ export function PayPalButton({
                 ? err.message
                 : `Failed to process payment: ${JSON.stringify(err)}`;
             console.error("Error capturing PayPal order:", err);
+            setLastPayPalError(message);
             onError(message);
           }
         },
@@ -161,8 +173,100 @@ export function PayPalButton({
         onCancel: () => {
           console.log("Payment cancelled by user");
         },
-      })
-      .render(paypalRef.current);
+      });
+
+    const renderResult = window.paypal.Buttons({
+      style: {
+        layout: "vertical",
+        color: "gold",
+        shape: "rect",
+        label: "paypal",
+      },
+      createOrder: async () => {
+        try {
+          setLastPayPalError(null);
+
+          const orderData = {
+            amount: totalAmount + shippingCost,
+            currency: "GBP",
+            returnUrl: `${window.location.origin}/order-confirmation`,
+            cancelUrl: `${window.location.origin}/checkout`,
+            items: items.map((item) => ({
+              name: item.name,
+              quantity: item.quantity,
+              unit_amount: item.price,
+            })),
+          };
+
+          const { data, error } = await supabase.functions.invoke("paypal", {
+            body: { action: "create", orderData },
+          });
+
+          if (error) throw new Error(error.message);
+          if (!data?.orderId)
+            throw new Error(`No order ID returned: ${JSON.stringify(data)}`);
+
+          setLastOrderId(data.orderId);
+          return data.orderId;
+        } catch (err) {
+          const message =
+            err instanceof Error
+              ? err.message
+              : `Failed to create order: ${JSON.stringify(err)}`;
+          console.error("Error creating PayPal order:", err);
+          setLastPayPalError(message);
+          onError(message);
+          throw err;
+        }
+      },
+      onApprove: async (data) => {
+        try {
+          const { data: captureData, error } = await supabase.functions.invoke(
+            "paypal",
+            {
+              body: { action: "capture", orderId: data.orderID },
+            }
+          );
+
+          if (error) throw new Error(error.message);
+          if (!captureData?.success) {
+            throw new Error(`Payment capture failed: ${JSON.stringify(captureData)}`);
+          }
+
+          onSuccess(captureData.orderId);
+        } catch (err) {
+          const message =
+            err instanceof Error
+              ? err.message
+              : `Failed to process payment: ${JSON.stringify(err)}`;
+          console.error("Error capturing PayPal order:", err);
+          setLastPayPalError(message);
+          onError(message);
+        }
+      },
+      onError: (err) => {
+        const message =
+          err instanceof Error
+            ? err.message
+            : `PayPal error: ${JSON.stringify(err)}`;
+        console.error("PayPal error:", err);
+        setLastPayPalError(message);
+        onError(message);
+      },
+      onCancel: () => {
+        console.log("Payment cancelled by user");
+      },
+    }).render(paypalRef.current);
+
+    Promise.resolve(renderResult).catch((err: unknown) => {
+      const message =
+        err instanceof Error
+          ? err.message
+          : `PayPal render error: ${JSON.stringify(err)}`;
+      console.error("PayPal render error:", err);
+      setLastPayPalError(message);
+      onError(message);
+    });
   }, [sdkReady, items, totalAmount, shippingCost, onSuccess, onError, disabled]);
 
   if (isLoading) {
@@ -183,9 +287,24 @@ export function PayPalButton({
   }
 
   return (
-    <div
-      ref={paypalRef}
-      className={disabled ? "opacity-50 pointer-events-none" : ""}
-    />
+    <div className={disabled ? "opacity-50 pointer-events-none" : ""}>
+      <div ref={paypalRef} />
+
+      {showDebug && (lastOrderId || lastPayPalError) && (
+        <div className="mt-3 rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+          <div className="font-medium text-foreground">PayPal debug</div>
+          {lastOrderId && (
+            <div className="mt-1">
+              last orderId: <code className="break-all">{lastOrderId}</code>
+            </div>
+          )}
+          {lastPayPalError && (
+            <div className="mt-1">
+              last error: <code className="break-all">{lastPayPalError}</code>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
