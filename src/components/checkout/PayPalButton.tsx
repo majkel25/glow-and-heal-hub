@@ -1,7 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { CartItem } from "@/contexts/CartContext";
-import { Loader2 } from "lucide-react";
+import { Loader2, CreditCard } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 declare global {
   interface Window {
@@ -13,6 +16,19 @@ declare global {
         onError: (err: unknown) => void;
         onCancel: () => void;
       }) => { render: (element: HTMLElement) => Promise<void> | void };
+      CardFields: (config: {
+        createOrder: () => Promise<string>;
+        onApprove: (data: { orderID: string }) => Promise<void>;
+        onError: (err: unknown) => void;
+        style?: Record<string, unknown>;
+      }) => {
+        isEligible: () => boolean;
+        NameField: (opts?: { placeholder?: string }) => { render: (el: string | HTMLElement) => Promise<void> };
+        NumberField: (opts?: { placeholder?: string }) => { render: (el: string | HTMLElement) => Promise<void> };
+        ExpiryField: (opts?: { placeholder?: string }) => { render: (el: string | HTMLElement) => Promise<void> };
+        CVVField: (opts?: { placeholder?: string }) => { render: (el: string | HTMLElement) => Promise<void> };
+        submit: () => Promise<void>;
+      };
     };
   }
 }
@@ -35,6 +51,7 @@ export function PayPalButton({
   disabled = false,
 }: PayPalButtonProps) {
   const paypalRef = useRef<HTMLDivElement>(null);
+  const cardFieldsInstanceRef = useRef<ReturnType<NonNullable<Window["paypal"]>["CardFields"]> | null>(null);
   const lastOrderIdRef = useRef<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -43,6 +60,12 @@ export function PayPalButton({
   const [paypalEnv, setPayPalEnv] = useState<string | null>(null);
   const [lastOrderId, setLastOrderId] = useState<string | null>(null);
   const [lastPayPalError, setLastPayPalError] = useState<string | null>(null);
+
+  // Card fields state
+  const [cardFieldsEligible, setCardFieldsEligible] = useState(false);
+  const [cardFieldsReady, setCardFieldsReady] = useState(false);
+  const [isCardProcessing, setIsCardProcessing] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<"paypal" | "card">("paypal");
 
   const showDebug = import.meta.env.DEV;
 
@@ -59,20 +82,68 @@ export function PayPalButton({
   const deriveUserMessage = (raw: string): string => {
     const lower = raw.toLowerCase();
 
-    // PayPal-hosted decline screen
     if (lower.includes("international regulations")) {
       return "PayPal declined this transaction due to compliance restrictions. Please try a different card/PayPal account.";
     }
 
-    // Common PayPal error codes
     if (lower.includes("instrument_declined")) {
       return "Your bank declined the payment method. Please try another card or PayPal balance.";
+    }
+
+    if (lower.includes("card_fields") && lower.includes("not eligible")) {
+      return "Card payments are not available for your account. Please use PayPal.";
     }
 
     return raw || "Payment failed. Please try again.";
   };
 
-  const reconcileOrderIfPossible = async (orderId: string): Promise<{ ok: boolean; message?: string }> => {
+  const buildOrderData = useCallback(() => ({
+    amount: totalAmount + shippingCost,
+    currency: "GBP",
+    returnUrl: `${window.location.origin}/order-confirmation`,
+    cancelUrl: `${window.location.origin}/checkout`,
+    items: items.map((item) => ({
+      name: item.name,
+      quantity: item.quantity,
+      unit_amount: item.price,
+    })),
+  }), [items, totalAmount, shippingCost]);
+
+  const createOrder = useCallback(async (): Promise<string> => {
+    setLastPayPalError(null);
+
+    const { data, error } = await supabase.functions.invoke("paypal", {
+      body: { action: "create", orderData: buildOrderData() },
+    });
+
+    if (error) throw new Error(error.message);
+    if (!data?.orderId) {
+      const msg = data?.error ? String(data.error) : `No order ID returned: ${toSafeString(data)}`;
+      throw new Error(msg);
+    }
+
+    lastOrderIdRef.current = data.orderId;
+    setLastOrderId(data.orderId);
+    return data.orderId;
+  }, [buildOrderData]);
+
+  const captureOrder = useCallback(async (orderId: string) => {
+    const { data: captureData, error } = await supabase.functions.invoke("paypal", {
+      body: { action: "capture", orderId },
+    });
+
+    if (error) throw new Error(error.message);
+    if (!captureData?.success) {
+      const msg = captureData?.error
+        ? String(captureData.error)
+        : `Payment capture failed: ${toSafeString(captureData)}`;
+      throw new Error(msg);
+    }
+
+    return captureData.orderId;
+  }, []);
+
+  const reconcileOrderIfPossible = useCallback(async (orderId: string): Promise<{ ok: boolean; message?: string }> => {
     const { data: statusData, error: statusError } = await supabase.functions.invoke("paypal", {
       body: { action: "get", orderId },
     });
@@ -83,22 +154,14 @@ export function PayPalButton({
 
     const status = String(statusData?.status || "");
 
-    // If buyer approved but our UI errored, try to capture so we can complete the flow.
     if (status === "APPROVED" || status === "COMPLETED") {
-      const { data: captureData, error: captureError } = await supabase.functions.invoke("paypal", {
-        body: { action: "capture", orderId },
-      });
-
-      if (captureError) {
-        return { ok: false, message: captureError.message };
-      }
-
-      if (captureData?.success) {
-        onSuccess(captureData.orderId || orderId);
+      try {
+        const capturedId = await captureOrder(orderId);
+        onSuccess(capturedId || orderId);
         return { ok: true };
+      } catch (err) {
+        return { ok: false, message: toSafeString(err) };
       }
-
-      return { ok: false, message: `Payment capture failed: ${toSafeString(captureData)}` };
     }
 
     if (status === "DECLINED" || status === "VOIDED") {
@@ -106,9 +169,9 @@ export function PayPalButton({
     }
 
     return { ok: false };
-  };
+  }, [captureOrder, onSuccess]);
 
-  // Load PayPal config (ensures the web SDK client-id matches backend credentials)
+  // Load PayPal config
   useEffect(() => {
     let mounted = true;
 
@@ -125,7 +188,6 @@ export function PayPalButton({
         const env = typeof data?.env === "string" ? data.env : null;
 
         if (!clientId) {
-          // Fallback for older setups (build-time env). This is less reliable in Cloud.
           const fallback = import.meta.env.VITE_PAYPAL_CLIENT_ID as string | undefined;
           if (mounted) setPayPalClientId(fallback || null);
         } else {
@@ -145,25 +207,24 @@ export function PayPalButton({
     };
   }, []);
 
-  // Load PayPal SDK
+  // Load PayPal SDK with card-fields component
   useEffect(() => {
     if (!paypalClientId) {
       setIsLoading(false);
       return;
     }
 
-    // If a PayPal script is already present but for a different client-id, remove it.
     const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]') as HTMLScriptElement | null;
     const existingSrc = existingScript?.src || "";
     const hasSameClientId = existingSrc.includes(`client-id=${encodeURIComponent(paypalClientId)}`);
+    const hasCardFields = existingSrc.includes("card-fields");
 
-    if (existingScript && window.paypal && hasSameClientId) {
+    if (existingScript && window.paypal && hasSameClientId && hasCardFields) {
       setSdkReady(true);
       setIsLoading(false);
       return;
     }
 
-    // Remove any existing PayPal scripts (can get stuck if a wrong/partial script is present)
     const oldScripts = document.querySelectorAll(
       'script[src*="paypal.com/sdk/js"], script[src*="sandbox.paypal.com/sdk/js"]'
     );
@@ -176,13 +237,10 @@ export function PayPalButton({
       "client-id": paypalClientId,
       currency: "GBP",
       intent: "capture",
-      components: "buttons",
+      components: "buttons,card-fields",
       locale: "en_GB",
-      // Avoid the embedded card flow (often the source of infinite spinners)
-      "disable-funding": "card",
     });
 
-    // Keep debug in dev only; PayPal debug mode can occasionally cause odd checkout behavior.
     if (import.meta.env.DEV) params.set("debug", "true");
 
     const script = document.createElement("script");
@@ -207,9 +265,7 @@ export function PayPalButton({
   useEffect(() => {
     if (!sdkReady || !window.paypal || !paypalRef.current || disabled) return;
 
-    // Clear previous buttons
     paypalRef.current.innerHTML = "";
-
 
     const renderResult = window.paypal.Buttons({
       style: {
@@ -220,39 +276,12 @@ export function PayPalButton({
       },
       createOrder: async () => {
         try {
-          setLastPayPalError(null);
-
-          const orderData = {
-            amount: totalAmount + shippingCost,
-            currency: "GBP",
-            returnUrl: `${window.location.origin}/order-confirmation`,
-            cancelUrl: `${window.location.origin}/checkout`,
-            items: items.map((item) => ({
-              name: item.name,
-              quantity: item.quantity,
-              unit_amount: item.price,
-            })),
-          };
-
-          const { data, error } = await supabase.functions.invoke("paypal", {
-            body: { action: "create", orderData },
-          });
-
-          if (error) throw new Error(error.message);
-          if (!data?.orderId) {
-            const msg = data?.error ? String(data.error) : `No order ID returned: ${toSafeString(data)}`;
-            throw new Error(msg);
-          }
-
-          lastOrderIdRef.current = data.orderId;
-          setLastOrderId(data.orderId);
-          return data.orderId;
+          return await createOrder();
         } catch (err) {
           const raw = toSafeString(err);
-          const userMessage = deriveUserMessage(raw);
           console.error("Error creating PayPal order:", err);
           setLastPayPalError(raw);
-          onError(userMessage);
+          onError(deriveUserMessage(raw));
           throw err;
         }
       },
@@ -260,26 +289,13 @@ export function PayPalButton({
         try {
           lastOrderIdRef.current = data.orderID;
           setLastOrderId(data.orderID);
-
-          const { data: captureData, error } = await supabase.functions.invoke("paypal", {
-            body: { action: "capture", orderId: data.orderID },
-          });
-
-          if (error) throw new Error(error.message);
-          if (!captureData?.success) {
-            const msg = captureData?.error
-              ? String(captureData.error)
-              : `Payment capture failed: ${toSafeString(captureData)}`;
-            throw new Error(msg);
-          }
-
-          onSuccess(captureData.orderId);
+          const capturedId = await captureOrder(data.orderID);
+          onSuccess(capturedId);
         } catch (err) {
           const raw = toSafeString(err);
-          const userMessage = deriveUserMessage(raw);
           console.error("Error capturing PayPal order:", err);
           setLastPayPalError(raw);
-          onError(userMessage);
+          onError(deriveUserMessage(raw));
         }
       },
       onError: (err) => {
@@ -296,9 +312,7 @@ export function PayPalButton({
         (async () => {
           const result = await reconcileOrderIfPossible(orderId);
           if (result.ok) return;
-
-          const message = deriveUserMessage(result.message || raw);
-          onError(message);
+          onError(deriveUserMessage(result.message || raw));
         })();
       },
       onCancel: () => {
@@ -315,13 +329,117 @@ export function PayPalButton({
       setLastPayPalError(message);
       onError(message);
     });
-  }, [sdkReady, items, totalAmount, shippingCost, onSuccess, onError, disabled]);
+  }, [sdkReady, createOrder, captureOrder, onSuccess, onError, disabled, reconcileOrderIfPossible]);
+
+  // Initialize Card Fields
+  useEffect(() => {
+    if (!sdkReady || !window.paypal?.CardFields || disabled || paymentMethod !== "card") {
+      setCardFieldsReady(false);
+      return;
+    }
+
+    const cardFields = window.paypal.CardFields({
+      createOrder: async () => {
+        try {
+          return await createOrder();
+        } catch (err) {
+          const raw = toSafeString(err);
+          console.error("Error creating order for card payment:", err);
+          setLastPayPalError(raw);
+          onError(deriveUserMessage(raw));
+          throw err;
+        }
+      },
+      onApprove: async (data) => {
+        try {
+          lastOrderIdRef.current = data.orderID;
+          setLastOrderId(data.orderID);
+          const capturedId = await captureOrder(data.orderID);
+          onSuccess(capturedId);
+        } catch (err) {
+          const raw = toSafeString(err);
+          console.error("Error capturing card payment:", err);
+          setLastPayPalError(raw);
+          onError(deriveUserMessage(raw));
+        } finally {
+          setIsCardProcessing(false);
+        }
+      },
+      onError: (err) => {
+        const raw = toSafeString(err);
+        console.error("Card payment error:", err);
+        setLastPayPalError(raw);
+        setIsCardProcessing(false);
+        onError(deriveUserMessage(raw));
+      },
+      style: {
+        input: {
+          "font-size": "14px",
+          "font-family": "inherit",
+          color: "hsl(var(--foreground))",
+        },
+        ".invalid": {
+          color: "hsl(var(--destructive))",
+        },
+      },
+    });
+
+    if (!cardFields.isEligible()) {
+      setCardFieldsEligible(false);
+      console.log("Card Fields not eligible for this account");
+      return;
+    }
+
+    setCardFieldsEligible(true);
+    cardFieldsInstanceRef.current = cardFields;
+
+    // Clear previous card fields
+    const containers = ["#card-name-field", "#card-number-field", "#card-expiry-field", "#card-cvv-field"];
+    containers.forEach(sel => {
+      const el = document.querySelector(sel);
+      if (el) el.innerHTML = "";
+    });
+
+    // Render card fields
+    Promise.all([
+      cardFields.NameField({ placeholder: "Name on card" }).render("#card-name-field"),
+      cardFields.NumberField({ placeholder: "Card number" }).render("#card-number-field"),
+      cardFields.ExpiryField({ placeholder: "MM/YY" }).render("#card-expiry-field"),
+      cardFields.CVVField({ placeholder: "CVV" }).render("#card-cvv-field"),
+    ])
+      .then(() => setCardFieldsReady(true))
+      .catch((err) => {
+        console.error("Error rendering card fields:", err);
+        setCardFieldsReady(false);
+      });
+
+    return () => {
+      cardFieldsInstanceRef.current = null;
+    };
+  }, [sdkReady, paymentMethod, createOrder, captureOrder, onSuccess, onError, disabled]);
+
+  const handleCardSubmit = async () => {
+    if (!cardFieldsInstanceRef.current) return;
+
+    setIsCardProcessing(true);
+    setLastPayPalError(null);
+
+    try {
+      await cardFieldsInstanceRef.current.submit();
+    } catch (err) {
+      const raw = toSafeString(err);
+      console.error("Card submit error:", err);
+      setLastPayPalError(raw);
+      setIsCardProcessing(false);
+      onError(deriveUserMessage(raw));
+    }
+  };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-4">
         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-        <span className="ml-2 text-sm text-muted-foreground">Loading PayPal...</span>
+        <span className="ml-2 text-sm text-muted-foreground">Loading payment options...</span>
       </div>
     );
   }
@@ -329,14 +447,111 @@ export function PayPalButton({
   if (!paypalClientId) {
     return (
       <div className="text-center py-4 text-sm text-muted-foreground">
-        PayPal is not configured. Please add PayPal credentials in your backend settings.
+        Payment is not configured. Please add PayPal credentials in your backend settings.
       </div>
     );
   }
 
   return (
     <div className={disabled ? "opacity-50 pointer-events-none" : ""}>
-      <div ref={paypalRef} />
+      {/* Payment method tabs */}
+      <div className="flex gap-2 mb-4">
+        <Button
+          type="button"
+          variant={paymentMethod === "paypal" ? "default" : "outline"}
+          className="flex-1"
+          onClick={() => setPaymentMethod("paypal")}
+        >
+          <img 
+            src="https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_37x23.jpg" 
+            alt="PayPal" 
+            className="h-5 mr-2"
+          />
+          PayPal
+        </Button>
+        <Button
+          type="button"
+          variant={paymentMethod === "card" ? "default" : "outline"}
+          className="flex-1"
+          onClick={() => setPaymentMethod("card")}
+        >
+          <CreditCard className="w-5 h-5 mr-2" />
+          Card
+        </Button>
+      </div>
+
+      {/* PayPal button */}
+      {paymentMethod === "paypal" && (
+        <div ref={paypalRef} />
+      )}
+
+      {/* Card fields */}
+      {paymentMethod === "card" && (
+        <div className="space-y-4">
+          {!cardFieldsEligible && sdkReady && window.paypal?.CardFields && (
+            <div className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-3">
+              Card payments require PayPal to enable "Advanced Credit and Debit Card Payments" for your account.
+              Please use PayPal instead or contact PayPal support.
+            </div>
+          )}
+
+          {cardFieldsEligible && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="card-name-field">Name on Card</Label>
+                <div 
+                  id="card-name-field" 
+                  className="min-h-[40px] border border-input rounded-md px-3 py-2 bg-background"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="card-number-field">Card Number</Label>
+                <div 
+                  id="card-number-field" 
+                  className="min-h-[40px] border border-input rounded-md px-3 py-2 bg-background"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="card-expiry-field">Expiry</Label>
+                  <div 
+                    id="card-expiry-field" 
+                    className="min-h-[40px] border border-input rounded-md px-3 py-2 bg-background"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="card-cvv-field">CVV</Label>
+                  <div 
+                    id="card-cvv-field" 
+                    className="min-h-[40px] border border-input rounded-md px-3 py-2 bg-background"
+                  />
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                className="w-full"
+                onClick={handleCardSubmit}
+                disabled={!cardFieldsReady || isCardProcessing}
+              >
+                {isCardProcessing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="w-4 h-4 mr-2" />
+                    Pay £{(totalAmount + shippingCost).toFixed(2)}
+                  </>
+                )}
+              </Button>
+            </>
+          )}
+        </div>
+      )}
 
       {showDebug && (lastOrderId || lastPayPalError || paypalEnv) && (
         <div className="mt-3 rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
@@ -344,6 +559,11 @@ export function PayPalButton({
           {paypalEnv && (
             <div className="mt-1">
               env: <code>{paypalEnv}</code>
+            </div>
+          )}
+          {cardFieldsEligible !== undefined && paymentMethod === "card" && (
+            <div className="mt-1">
+              card fields eligible: <code>{String(cardFieldsEligible)}</code>
             </div>
           )}
           {lastOrderId && (
