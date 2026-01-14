@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CartItem } from "@/contexts/CartContext";
 import { Loader2, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+
 import { Label } from "@/components/ui/label";
 
 declare global {
@@ -63,6 +63,7 @@ export function PayPalButton({
   const [isLoading, setIsLoading] = useState(true);
   const [sdkReady, setSdkReady] = useState(false);
   const [paypalClientId, setPayPalClientId] = useState<string | null>(null);
+  const [paypalClientToken, setPayPalClientToken] = useState<string | null>(null);
   const [paypalEnv, setPayPalEnv] = useState<string | null>(null);
   const [lastOrderId, setLastOrderId] = useState<string | null>(null);
   const [lastPayPalError, setLastPayPalError] = useState<string | null>(null);
@@ -192,6 +193,7 @@ export function PayPalButton({
 
         const clientId = typeof data?.clientId === "string" ? data.clientId : null;
         const env = typeof data?.env === "string" ? data.env : null;
+        const clientToken = typeof data?.clientToken === "string" ? data.clientToken : null;
 
         if (!clientId) {
           const fallback = import.meta.env.VITE_PAYPAL_CLIENT_ID as string | undefined;
@@ -200,6 +202,7 @@ export function PayPalButton({
           if (mounted) setPayPalClientId(clientId);
         }
 
+        if (mounted) setPayPalClientToken(clientToken);
         if (mounted) setPayPalEnv(env);
       } catch (err) {
         console.error("Failed to load PayPal config:", err);
@@ -224,8 +227,11 @@ export function PayPalButton({
     const existingSrc = existingScript?.src || "";
     const hasSameClientId = existingSrc.includes(`client-id=${encodeURIComponent(paypalClientId)}`);
     const hasCardFields = existingSrc.includes("card-fields");
+    const hasSameClientToken = paypalClientToken
+      ? existingScript?.getAttribute("data-client-token") === paypalClientToken
+      : true;
 
-    if (existingScript && window.paypal && hasSameClientId && hasCardFields) {
+    if (existingScript && window.paypal && hasSameClientId && hasCardFields && hasSameClientToken) {
       setSdkReady(true);
       setIsLoading(false);
       return;
@@ -252,6 +258,11 @@ export function PayPalButton({
     const script = document.createElement("script");
     script.src = `https://www.paypal.com/sdk/js?${params.toString()}`;
     script.async = true;
+
+    if (paypalClientToken) {
+      script.setAttribute("data-client-token", paypalClientToken);
+    }
+
     script.onload = () => {
       setSdkReady(true);
       setIsLoading(false);
@@ -265,7 +276,7 @@ export function PayPalButton({
     return () => {
       // Cleanup handled by browser
     };
-  }, [paypalClientId]);
+  }, [paypalClientId, paypalClientToken]);
 
   // Render PayPal buttons - re-render when payment method changes to paypal
   useEffect(() => {
@@ -338,75 +349,99 @@ export function PayPalButton({
     });
   }, [sdkReady, paymentMethod, createOrder, captureOrder, onSuccess, onError, disabled, reconcileOrderIfPossible]);
 
-  // Initialize Card Fields - wait for DOM elements to exist
+  // Card Fields: create instance + check eligibility
   useEffect(() => {
     if (!sdkReady || !window.paypal?.CardFields || disabled || paymentMethod !== "card") {
+      setCardFieldsEligible(false);
+      setCardFieldsReady(false);
+      cardFieldsInstanceRef.current = null;
+      return;
+    }
+
+    setCardFieldsReady(false);
+
+    const cardFields = window.paypal.CardFields({
+      createOrder: async () => {
+        try {
+          return await createOrder();
+        } catch (err) {
+          const raw = toSafeString(err);
+          console.error("Error creating order for card payment:", err);
+          setLastPayPalError(raw);
+          onError(deriveUserMessage(raw));
+          throw err;
+        }
+      },
+      onApprove: async (data) => {
+        try {
+          lastOrderIdRef.current = data.orderID;
+          setLastOrderId(data.orderID);
+          const capturedId = await captureOrder(data.orderID);
+          onSuccess(capturedId);
+        } catch (err) {
+          const raw = toSafeString(err);
+          console.error("Error capturing card payment:", err);
+          setLastPayPalError(raw);
+          onError(deriveUserMessage(raw));
+        } finally {
+          setIsCardProcessing(false);
+        }
+      },
+      onError: (err) => {
+        const raw = toSafeString(err);
+        console.error("Card payment error:", err);
+        setLastPayPalError(raw);
+        setIsCardProcessing(false);
+        onError(deriveUserMessage(raw));
+      },
+      style: {
+        input: {
+          "font-size": "14px",
+          "font-family": "inherit",
+          color: "hsl(var(--foreground))",
+        },
+        ".invalid": {
+          color: "hsl(var(--destructive))",
+        },
+      },
+    });
+
+    // IMPORTANT: `isEligible()` can return false if the merchant isn't enabled *or* if the SDK
+    // isn't fully authorized for Advanced Card Payments in this environment.
+    const eligible = Boolean(cardFields.isEligible());
+    setCardFieldsEligible(eligible);
+
+    if (!eligible) {
+      cardFieldsInstanceRef.current = null;
+      return;
+    }
+
+    cardFieldsInstanceRef.current = cardFields;
+
+    return () => {
+      cardFieldsInstanceRef.current = null;
+    };
+  }, [sdkReady, paymentMethod, createOrder, captureOrder, onSuccess, onError, disabled]);
+
+  // Card Fields: render inputs once eligible + DOM containers exist
+  useEffect(() => {
+    if (!cardFieldsEligible || paymentMethod !== "card" || disabled) {
       setCardFieldsReady(false);
       return;
     }
 
-    // Wait for next tick to ensure DOM elements are rendered
-    const timeoutId = setTimeout(() => {
-      // Check if all container refs exist
+    const cardFields = cardFieldsInstanceRef.current;
+    if (!cardFields) {
+      setCardFieldsReady(false);
+      return;
+    }
+
+    const raf = requestAnimationFrame(() => {
       if (!cardNameRef.current || !cardNumberRef.current || !cardExpiryRef.current || !cardCvvRef.current) {
         console.error("Card field containers not found in DOM");
+        setCardFieldsReady(false);
         return;
       }
-
-      const cardFields = window.paypal!.CardFields({
-        createOrder: async () => {
-          try {
-            return await createOrder();
-          } catch (err) {
-            const raw = toSafeString(err);
-            console.error("Error creating order for card payment:", err);
-            setLastPayPalError(raw);
-            onError(deriveUserMessage(raw));
-            throw err;
-          }
-        },
-        onApprove: async (data) => {
-          try {
-            lastOrderIdRef.current = data.orderID;
-            setLastOrderId(data.orderID);
-            const capturedId = await captureOrder(data.orderID);
-            onSuccess(capturedId);
-          } catch (err) {
-            const raw = toSafeString(err);
-            console.error("Error capturing card payment:", err);
-            setLastPayPalError(raw);
-            onError(deriveUserMessage(raw));
-          } finally {
-            setIsCardProcessing(false);
-          }
-        },
-        onError: (err) => {
-          const raw = toSafeString(err);
-          console.error("Card payment error:", err);
-          setLastPayPalError(raw);
-          setIsCardProcessing(false);
-          onError(deriveUserMessage(raw));
-        },
-        style: {
-          input: {
-            "font-size": "14px",
-            "font-family": "inherit",
-            color: "hsl(var(--foreground))",
-          },
-          ".invalid": {
-            color: "hsl(var(--destructive))",
-          },
-        },
-      });
-
-      if (!cardFields.isEligible()) {
-        setCardFieldsEligible(false);
-        console.log("Card Fields not eligible for this account");
-        return;
-      }
-
-      setCardFieldsEligible(true);
-      cardFieldsInstanceRef.current = cardFields;
 
       // Clear previous card fields content
       cardNameRef.current.innerHTML = "";
@@ -414,7 +449,6 @@ export function PayPalButton({
       cardExpiryRef.current.innerHTML = "";
       cardCvvRef.current.innerHTML = "";
 
-      // Render card fields using element references directly
       Promise.all([
         cardFields.NameField({ placeholder: "Name on card" }).render(cardNameRef.current),
         cardFields.NumberField({ placeholder: "Card number" }).render(cardNumberRef.current),
@@ -426,13 +460,10 @@ export function PayPalButton({
           console.error("Error rendering card fields:", err);
           setCardFieldsReady(false);
         });
-    }, 100); // Small delay to ensure DOM is ready
+    });
 
-    return () => {
-      clearTimeout(timeoutId);
-      cardFieldsInstanceRef.current = null;
-    };
-  }, [sdkReady, paymentMethod, createOrder, captureOrder, onSuccess, onError, disabled]);
+    return () => cancelAnimationFrame(raf);
+  }, [cardFieldsEligible, paymentMethod, disabled]);
 
   const handleCardSubmit = async () => {
     if (!cardFieldsInstanceRef.current) return;
@@ -505,7 +536,7 @@ export function PayPalButton({
       {paymentMethod === "card" && (
         <div className="space-y-4">
           {!cardFieldsEligible && sdkReady && window.paypal?.CardFields && (
-            <div className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <div className="text-sm text-foreground bg-muted/50 border border-border rounded-lg p-3">
               Card payments require PayPal to enable "Advanced Credit and Debit Card Payments" for your account.
               Please use PayPal instead or contact PayPal support.
             </div>
