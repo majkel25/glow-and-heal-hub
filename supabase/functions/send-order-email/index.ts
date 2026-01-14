@@ -107,8 +107,8 @@ async function generateOrderEmailHtml(order: OrderEmailRequest): Promise<string>
   // Get logo as base64 for embedding in email
   const logoData = await getLogoBase64();
   const logoHtml = logoData 
-    ? `<img src="data:image/png;base64,${logoData}" alt="MeYounger" style="height: 50px; margin-bottom: 16px; display: block; margin-left: auto; margin-right: auto;" />`
-    : `<div style="font-size: 24px; font-weight: bold; color: white; margin-bottom: 16px;">MeYounger</div>`;
+    ? `<img src="data:image/png;base64,${logoData}" alt="MeYounger" style="height: 24px; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;" />`
+    : `<div style="font-size: 16px; font-weight: bold; color: white; margin-bottom: 12px;">MeYounger</div>`;
 
   return `
     <!DOCTYPE html>
