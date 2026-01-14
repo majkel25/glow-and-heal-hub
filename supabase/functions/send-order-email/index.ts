@@ -7,26 +7,16 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// MeYounger logo as base64 - fetched and cached in-memory
-let logoBase64: string | null = null;
+const EMAIL_LOGO_URL = "https://glow-and-heal-hub.lovable.app/email-logo.png";
 
-async function getLogoBase64(): Promise<string> {
-  if (logoBase64) return logoBase64;
-
+async function checkEmailLogoAvailable(): Promise<boolean> {
   try {
-    // Read from the function bundle (reliable in production; avoids depending on site assets)
-    const bytes = await Deno.readFile(new URL("./email-logo.png", import.meta.url));
-
-    let binary = "";
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-
-    logoBase64 = btoa(binary);
-    return logoBase64;
+    const res = await fetch(EMAIL_LOGO_URL, { method: "GET" });
+    console.log("Email logo fetch status:", res.status);
+    return res.ok;
   } catch (e) {
-    console.error("Failed to load bundled email logo:", e);
-    return "";
+    console.error("Email logo fetch failed:", e);
+    return false;
   }
 }
 
@@ -37,9 +27,12 @@ async function sendEmail(
   html: string,
   attachments?: Array<{
     filename: string;
-    content: string; // base64
-    content_type: string;
-    // Resend supports both in different contexts/docs; we send both for compatibility.
+    // For outbound inline images, Resend supports providing either `path` (URL) or `content` (base64).
+    path?: string;
+    content?: string;
+    content_type?: string;
+    contentType?: string;
+    // Resend docs differ between REST/SDK; we send both when using CID.
     content_id?: string;
     contentId?: string;
   }>
@@ -131,12 +124,16 @@ async function generateOrderEmailHtml(order: OrderEmailRequest, hasLogo: boolean
     <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6; margin: 0; padding: 40px 20px;">
       <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
         
-        <!-- Header -->
-        <div style="background-color: #8b7355; background: #8b7355; padding: 32px; text-align: center;">
-          ${logoHtml}
-          <h1 style="margin: 0; color: white; font-size: 24px; font-weight: 600;">Order Confirmed</h1>
-          <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">Thank you for your purchase!</p>
-        </div>
+        <!-- Header (table-based for Outlook) -->
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#8b7355" style="background-color: #8b7355;">
+          <tr>
+            <td align="center" style="padding: 32px; text-align: center;">
+              ${logoHtml}
+              <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">Order Confirmed</h1>
+              <p style="margin: 8px 0 0 0; color: #ffffff; font-size: 14px;">Thank you for your purchase!</p>
+            </td>
+          </tr>
+        </table>
         
         <!-- Content -->
         <div style="padding: 32px;">
@@ -216,19 +213,14 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log("Sending order confirmation email for order:", orderData.orderId);
 
-    const logoAttachmentBase64 = await getLogoBase64();
-    console.log(
-      "Logo attachment present:",
-      Boolean(logoAttachmentBase64),
-      "base64Length:",
-      logoAttachmentBase64?.length ?? 0
-    );
+    const logoAvailable = await checkEmailLogoAvailable();
+    console.log("Logo available:", logoAvailable, "url:", EMAIL_LOGO_URL);
 
-    const attachments = logoAttachmentBase64
+    const attachments = logoAvailable
       ? [
           {
             filename: "logo.png",
-            content: logoAttachmentBase64,
+            path: EMAIL_LOGO_URL,
             content_type: "image/png",
             content_id: "meyoungerlogo",
             contentId: "meyoungerlogo",
@@ -236,7 +228,7 @@ const handler = async (req: Request): Promise<Response> => {
         ]
       : undefined;
 
-    const emailHtml = await generateOrderEmailHtml(orderData, Boolean(logoAttachmentBase64));
+    const emailHtml = await generateOrderEmailHtml(orderData, logoAvailable);
 
     // Send to customer - using verified subdomain orders.meyounger.co.uk
     const customerEmailResponse = await sendEmail(
