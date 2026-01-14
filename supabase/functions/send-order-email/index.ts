@@ -89,6 +89,7 @@ function generateOrderEmailHtml(order: OrderEmailRequest): string {
         
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #a78b7d 0%, #8b7355 100%); padding: 32px; text-align: center;">
+          <img src="https://glow-and-heal-hub.lovable.app/logo.png" alt="MeYounger" style="height: 50px; margin-bottom: 16px;" />
           <h1 style="margin: 0; color: white; font-size: 24px; font-weight: 600;">Order Confirmed</h1>
           <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">Thank you for your purchase!</p>
         </div>
