@@ -14,23 +14,20 @@ async function getLogoBase64(): Promise<string> {
   if (logoBase64) return logoBase64;
 
   try {
-    // Use the correctly-sized email logo asset
-    const response = await fetch("https://glow-and-heal-hub.lovable.app/email-logo.png");
-    if (response.ok) {
-      const arrayBuffer = await response.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-      let binary = "";
-      for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      logoBase64 = btoa(binary);
-      return logoBase64;
-    }
-  } catch (e) {
-    console.error("Failed to fetch logo:", e);
-  }
+    // Read from the function bundle (reliable in production; avoids depending on site assets)
+    const bytes = await Deno.readFile(new URL("./email-logo.png", import.meta.url));
 
-  return "";
+    let binary = "";
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+
+    logoBase64 = btoa(binary);
+    return logoBase64;
+  } catch (e) {
+    console.error("Failed to load bundled email logo:", e);
+    return "";
+  }
 }
 
 async function sendEmail(
@@ -42,7 +39,9 @@ async function sendEmail(
     filename: string;
     content: string; // base64
     content_type: string;
+    // Resend supports both in different contexts/docs; we send both for compatibility.
     content_id?: string;
+    contentId?: string;
   }>
 ) {
   const payload: Record<string, unknown> = { from, to, subject, html };
@@ -133,7 +132,7 @@ async function generateOrderEmailHtml(order: OrderEmailRequest, hasLogo: boolean
       <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
         
         <!-- Header -->
-        <div style="background: linear-gradient(135deg, #a78b7d 0%, #8b7355 100%); padding: 32px; text-align: center;">
+        <div style="background-color: #8b7355; background: #8b7355; padding: 32px; text-align: center;">
           ${logoHtml}
           <h1 style="margin: 0; color: white; font-size: 24px; font-weight: 600;">Order Confirmed</h1>
           <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">Thank you for your purchase!</p>
@@ -232,6 +231,7 @@ const handler = async (req: Request): Promise<Response> => {
             content: logoAttachmentBase64,
             content_type: "image/png",
             content_id: "meyoungerlogo",
+            contentId: "meyoungerlogo",
           },
         ]
       : undefined;
