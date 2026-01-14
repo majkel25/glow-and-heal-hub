@@ -109,7 +109,7 @@ export function PayPalButton({
   // Load PayPal SDK
   useEffect(() => {
     const clientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
-    
+
     if (!clientId) {
       console.error("PayPal Client ID not configured");
       setIsLoading(false);
@@ -131,8 +131,19 @@ export function PayPalButton({
     );
     oldScripts.forEach((s) => s.remove());
 
+    const params = new URLSearchParams({
+      "client-id": clientId,
+      currency: "GBP",
+      intent: "capture",
+      components: "buttons",
+      locale: "en_GB",
+    });
+
+    // Keep debug in dev only; PayPal debug mode can occasionally cause odd checkout behavior.
+    if (import.meta.env.DEV) params.set("debug", "true");
+
     const script = document.createElement("script");
-    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=GBP&intent=capture&enable-funding=card&buyer-country=GB&locale=en_GB&debug=true`;
+    script.src = `https://www.paypal.com/sdk/js?${params.toString()}`;
     script.async = true;
     script.onload = () => {
       setSdkReady(true);
