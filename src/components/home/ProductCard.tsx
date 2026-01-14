@@ -64,11 +64,11 @@ export function ProductCard({
         {/* Quick add button */}
         <div
           className={cn(
-            "absolute bottom-3 left-3 right-3 transition-all duration-300",
+            "absolute bottom-3 left-3 transition-all duration-300",
             isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
           )}
         >
-          <Button className="w-full" variant="default" size="sm">
+          <Button variant="default" size="sm">
             <ShoppingBag className="w-4 h-4 mr-2" />
             Add to Cart
           </Button>
