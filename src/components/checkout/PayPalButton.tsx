@@ -551,6 +551,17 @@ export function PayPalButton({
     })();
   }, [sdkReady]);
 
+  // Default to Apple Pay when it's available (but don't override user choice)
+  useEffect(() => {
+    if (applePayEligible && paymentMethod === "paypal") {
+      setPaymentMethod("applepay");
+    }
+
+    if (!applePayEligible && paymentMethod === "applepay") {
+      setPaymentMethod("paypal");
+    }
+  }, [applePayEligible, paymentMethod]);
+
   const handleApplePayClick = async () => {
     if (!window.paypal?.Applepay || !window.ApplePaySession || !applePayConfig) return;
 
@@ -673,34 +684,36 @@ export function PayPalButton({
   return (
     <div className={disabled ? "opacity-50 pointer-events-none" : ""}>
       {/* Payment method tabs */}
-      <div className="flex flex-wrap gap-2 mb-4">
+      <div className="grid w-full gap-2 mb-4">
         <Button
           type="button"
           variant={paymentMethod === "paypal" ? "default" : "outline"}
-          className="flex-1 min-w-[100px]"
+          className="w-full"
           onClick={() => setPaymentMethod("paypal")}
         >
-          <img 
-            src="https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_37x23.jpg" 
-            alt="PayPal" 
+          <img
+            src="https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_37x23.jpg"
+            alt="PayPal"
             className="h-5 mr-2"
           />
           PayPal
         </Button>
+
         <Button
           type="button"
           variant={paymentMethod === "card" ? "default" : "outline"}
-          className="flex-1 min-w-[100px]"
+          className="w-full"
           onClick={() => setPaymentMethod("card")}
         >
           <CreditCard className="w-5 h-5 mr-2" />
           Card
         </Button>
+
         {applePayEligible && (
           <Button
             type="button"
             variant={paymentMethod === "applepay" ? "default" : "outline"}
-            className="flex-1 min-w-[100px]"
+            className="w-full"
             onClick={() => setPaymentMethod("applepay")}
           >
             <Apple className="w-5 h-5 mr-2" />
@@ -711,7 +724,7 @@ export function PayPalButton({
 
       {/* PayPal button */}
       {paymentMethod === "paypal" && (
-        <div ref={paypalRef} className="min-h-[150px]" />
+        <div ref={paypalRef} className="w-full min-h-[150px]" />
       )}
 
       {/* Apple Pay */}
