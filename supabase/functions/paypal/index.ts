@@ -47,6 +47,28 @@ async function getAccessToken(): Promise<string> {
   return data.access_token;
 }
 
+async function generateClientToken(accessToken: string): Promise<string> {
+  const response = await fetch(`${PAYPAL_API_BASE}/v1/identity/generate-token`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to generate client token (${response.status}): ${errorText || 'Unknown error'}`);
+  }
+
+  const data = await response.json();
+  if (!data?.client_token) {
+    throw new Error('PayPal client token missing from response');
+  }
+
+  return data.client_token as string;
+}
+
 async function createOrder(
   accessToken: string,
   orderData: {
@@ -169,10 +191,19 @@ serve(async (req) => {
 
     console.log(`PayPal action: ${action} (env=${PAYPAL_ENV})`);
 
-    // Public config for the web client (client-id is not a secret).
+    // Public config for the web client (client-id and client-token are not secrets).
     if (action === 'config') {
+      let clientToken: string | null = null;
+
+      try {
+        const accessToken = await getAccessToken();
+        clientToken = await generateClientToken(accessToken);
+      } catch (err) {
+        console.warn('PayPal client token not available:', err);
+      }
+
       return new Response(
-        JSON.stringify({ success: true, clientId: PAYPAL_CLIENT_ID, env: PAYPAL_ENV }),
+        JSON.stringify({ success: true, clientId: PAYPAL_CLIENT_ID, env: PAYPAL_ENV, clientToken }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
