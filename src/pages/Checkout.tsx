@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCart } from "@/contexts/CartContext";
-import { ArrowLeft, ShoppingBag, Lock, Truck } from "lucide-react";
+import { ArrowLeft, ShoppingBag, Lock, Truck, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { PayPalButton } from "@/components/checkout/PayPalButton";
@@ -24,7 +24,7 @@ const checkoutSchema = z.object({
 type CheckoutForm = z.infer<typeof checkoutSchema>;
 
 const Checkout = () => {
-  const { items, totalPrice, clearCart } = useCart();
+  const { items, totalPrice, clearCart, removeFromCart } = useCart();
   const navigate = useNavigate();
   const [isProcessing, setIsProcessing] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof CheckoutForm, string>>>({});
@@ -264,7 +264,7 @@ const Checkout = () => {
                 
                 <div className="space-y-4 mb-6">
                   {items.map((item) => (
-                    <div key={item.id} className="flex gap-4">
+                    <div key={item.id} className="flex gap-4 group">
                       <div className="relative">
                         <img
                           src={item.image}
@@ -281,9 +281,18 @@ const Checkout = () => {
                         </h4>
                         <p className="text-xs text-muted-foreground">{item.brand}</p>
                       </div>
-                      <span className="font-medium text-foreground">
-                        £{(item.price * item.quantity).toFixed(2)}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-foreground">
+                          £{(item.price * item.quantity).toFixed(2)}
+                        </span>
+                        <button
+                          onClick={() => removeFromCart(item.id)}
+                          className="p-1 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                          aria-label={`Remove ${item.name} from cart`}
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
