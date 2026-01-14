@@ -48,21 +48,23 @@ export function PayPalButton({
       return;
     }
 
-    // Check if SDK already loaded with correct sandbox URL
-    const existingScript = document.querySelector('script[src*="sandbox.paypal.com/sdk/js"]');
+    // PayPal JS SDK is served from paypal.com for both sandbox and live.
+    // Sandbox vs live is determined by the client-id you pass.
+    const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
     if (existingScript && window.paypal) {
       setSdkReady(true);
       setIsLoading(false);
       return;
     }
-    
-    // Remove any existing PayPal scripts (might be wrong environment)
-    const oldScripts = document.querySelectorAll('script[src*="paypal.com/sdk/js"]');
-    oldScripts.forEach(s => s.remove());
+
+    // Remove any existing PayPal scripts (can get stuck if a wrong/partial script is present)
+    const oldScripts = document.querySelectorAll(
+      'script[src*="paypal.com/sdk/js"], script[src*="sandbox.paypal.com/sdk/js"]'
+    );
+    oldScripts.forEach((s) => s.remove());
 
     const script = document.createElement("script");
-    // Use sandbox for testing - remove &debug=true for production
-    script.src = `https://www.sandbox.paypal.com/sdk/js?client-id=${clientId}&currency=GBP`;
+    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=GBP&intent=capture&enable-funding=card`;
     script.async = true;
     script.onload = () => {
       setSdkReady(true);
