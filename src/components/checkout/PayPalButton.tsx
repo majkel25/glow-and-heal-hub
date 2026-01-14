@@ -250,8 +250,9 @@ export function PayPalButton({
       onCancel: () => {
         console.log("Payment cancelled by user");
       },
+    });
 
-    Promise.resolve(renderResult).catch((err: unknown) => {
+    Promise.resolve(renderResult.render(paypalRef.current!)).catch((err: unknown) => {
       const message =
         err instanceof Error
           ? err.message
