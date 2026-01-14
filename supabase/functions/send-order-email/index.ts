@@ -171,10 +171,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     const emailHtml = generateOrderEmailHtml(orderData);
 
-    // Send to customer
+    // Send to customer - using verified subdomain orders.meyounger.co.uk
     const customerEmailResponse = await sendEmail(
       [orderData.customerEmail],
-      "MeYounger Orders <orders@meyounger.co.uk>",
+      "MeYounger Orders <noreply@orders.meyounger.co.uk>",
       `Order Confirmed - ${orderData.orderId}`,
       emailHtml
     );
@@ -184,7 +184,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Send copy to business
     const businessEmailResponse = await sendEmail(
       ["orders@meyounger.co.uk"],
-      "MeYounger Orders <orders@meyounger.co.uk>",
+      "MeYounger Orders <noreply@orders.meyounger.co.uk>",
       `New Order Received - ${orderData.orderId}`,
       emailHtml
     );
