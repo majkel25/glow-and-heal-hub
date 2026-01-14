@@ -8,8 +8,11 @@ const corsHeaders = {
 const PAYPAL_CLIENT_ID = Deno.env.get('PAYPAL_CLIENT_ID');
 const PAYPAL_CLIENT_SECRET = Deno.env.get('PAYPAL_CLIENT_SECRET');
 
-// Production PayPal API
-const PAYPAL_API_BASE = 'https://api-m.paypal.com';
+// Optional: set PAYPAL_ENV=sandbox to use the sandbox API.
+const PAYPAL_ENV = (Deno.env.get('PAYPAL_ENV') || 'live').toLowerCase();
+const PAYPAL_API_BASE = PAYPAL_ENV === 'sandbox'
+  ? 'https://api-m.sandbox.paypal.com'
+  : 'https://api-m.paypal.com';
 
 async function getAccessToken(): Promise<string> {
   if (!PAYPAL_CLIENT_ID || !PAYPAL_CLIENT_SECRET) {
@@ -164,7 +167,15 @@ serve(async (req) => {
   try {
     const { action, orderData, orderId } = await req.json();
 
-    console.log(`PayPal action: ${action}`);
+    console.log(`PayPal action: ${action} (env=${PAYPAL_ENV})`);
+
+    // Public config for the web client (client-id is not a secret).
+    if (action === 'config') {
+      return new Response(
+        JSON.stringify({ success: true, clientId: PAYPAL_CLIENT_ID, env: PAYPAL_ENV }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
 
     const accessToken = await getAccessToken();
 

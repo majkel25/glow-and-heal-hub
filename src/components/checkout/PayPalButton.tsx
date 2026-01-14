@@ -39,6 +39,8 @@ export function PayPalButton({
 
   const [isLoading, setIsLoading] = useState(true);
   const [sdkReady, setSdkReady] = useState(false);
+  const [paypalClientId, setPayPalClientId] = useState<string | null>(null);
+  const [paypalEnv, setPayPalEnv] = useState<string | null>(null);
   const [lastOrderId, setLastOrderId] = useState<string | null>(null);
   const [lastPayPalError, setLastPayPalError] = useState<string | null>(null);
 
@@ -106,20 +108,56 @@ export function PayPalButton({
     return { ok: false };
   };
 
+  // Load PayPal config (ensures the web SDK client-id matches backend credentials)
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      try {
+        setIsLoading(true);
+        const { data, error } = await supabase.functions.invoke("paypal", {
+          body: { action: "config" },
+        });
+
+        if (error) throw new Error(error.message);
+
+        const clientId = typeof data?.clientId === "string" ? data.clientId : null;
+        const env = typeof data?.env === "string" ? data.env : null;
+
+        if (!clientId) {
+          // Fallback for older setups (build-time env). This is less reliable in Cloud.
+          const fallback = import.meta.env.VITE_PAYPAL_CLIENT_ID as string | undefined;
+          if (mounted) setPayPalClientId(fallback || null);
+        } else {
+          if (mounted) setPayPalClientId(clientId);
+        }
+
+        if (mounted) setPayPalEnv(env);
+      } catch (err) {
+        console.error("Failed to load PayPal config:", err);
+        const fallback = import.meta.env.VITE_PAYPAL_CLIENT_ID as string | undefined;
+        if (mounted) setPayPalClientId(fallback || null);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   // Load PayPal SDK
   useEffect(() => {
-    const clientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
-
-    if (!clientId) {
-      console.error("PayPal Client ID not configured");
+    if (!paypalClientId) {
       setIsLoading(false);
       return;
     }
 
-    // PayPal JS SDK is served from paypal.com for both sandbox and live.
-    // Sandbox vs live is determined by the client-id you pass.
-    const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]');
-    if (existingScript && window.paypal) {
+    // If a PayPal script is already present but for a different client-id, remove it.
+    const existingScript = document.querySelector('script[src*="paypal.com/sdk/js"]') as HTMLScriptElement | null;
+    const existingSrc = existingScript?.src || "";
+    const hasSameClientId = existingSrc.includes(`client-id=${encodeURIComponent(paypalClientId)}`);
+
+    if (existingScript && window.paypal && hasSameClientId) {
       setSdkReady(true);
       setIsLoading(false);
       return;
@@ -131,8 +169,11 @@ export function PayPalButton({
     );
     oldScripts.forEach((s) => s.remove());
 
+    setSdkReady(false);
+    setIsLoading(true);
+
     const params = new URLSearchParams({
-      "client-id": clientId,
+      "client-id": paypalClientId,
       currency: "GBP",
       intent: "capture",
       components: "buttons",
@@ -160,7 +201,7 @@ export function PayPalButton({
     return () => {
       // Cleanup handled by browser
     };
-  }, []);
+  }, [paypalClientId]);
 
   // Render PayPal buttons
   useEffect(() => {
@@ -285,10 +326,10 @@ export function PayPalButton({
     );
   }
 
-  if (!import.meta.env.VITE_PAYPAL_CLIENT_ID) {
+  if (!paypalClientId) {
     return (
       <div className="text-center py-4 text-sm text-muted-foreground">
-        PayPal is not configured. Please add VITE_PAYPAL_CLIENT_ID to your environment.
+        PayPal is not configured. Please add PayPal credentials in your backend settings.
       </div>
     );
   }
@@ -297,9 +338,14 @@ export function PayPalButton({
     <div className={disabled ? "opacity-50 pointer-events-none" : ""}>
       <div ref={paypalRef} />
 
-      {showDebug && (lastOrderId || lastPayPalError) && (
+      {showDebug && (lastOrderId || lastPayPalError || paypalEnv) && (
         <div className="mt-3 rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
           <div className="font-medium text-foreground">PayPal debug</div>
+          {paypalEnv && (
+            <div className="mt-1">
+              env: <code>{paypalEnv}</code>
+            </div>
+          )}
           {lastOrderId && (
             <div className="mt-1">
               last orderId: <code className="break-all">{lastOrderId}</code>
