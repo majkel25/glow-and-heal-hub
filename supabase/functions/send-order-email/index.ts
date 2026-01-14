@@ -7,6 +7,33 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// MeYounger logo as base64 - fetched and cached at function start
+let logoBase64: string | null = null;
+
+async function getLogoBase64(): Promise<string> {
+  if (logoBase64) return logoBase64;
+  
+  try {
+    const response = await fetch("https://glow-and-heal-hub.lovable.app/logo.png");
+    if (response.ok) {
+      const arrayBuffer = await response.arrayBuffer();
+      // Convert ArrayBuffer to base64 string
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = '';
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      logoBase64 = btoa(binary);
+      return logoBase64;
+    }
+  } catch (e) {
+    console.error("Failed to fetch logo:", e);
+  }
+  
+  // Return empty string if fetch fails
+  return "";
+}
+
 async function sendEmail(to: string[], from: string, subject: string, html: string) {
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -55,7 +82,7 @@ function formatCurrency(amount: number, currency: string): string {
   }).format(amount);
 }
 
-function generateOrderEmailHtml(order: OrderEmailRequest): string {
+async function generateOrderEmailHtml(order: OrderEmailRequest): Promise<string> {
   const itemsHtml = order.items.map(item => `
     <tr>
       <td style="padding: 12px; border-bottom: 1px solid #eee;">${item.name}</td>
@@ -77,6 +104,12 @@ function generateOrderEmailHtml(order: OrderEmailRequest): string {
     </div>
   ` : '';
 
+  // Get logo as base64 for embedding in email
+  const logoData = await getLogoBase64();
+  const logoHtml = logoData 
+    ? `<img src="data:image/png;base64,${logoData}" alt="MeYounger" style="height: 50px; margin-bottom: 16px; display: block; margin-left: auto; margin-right: auto;" />`
+    : `<div style="font-size: 24px; font-weight: bold; color: white; margin-bottom: 16px;">MeYounger</div>`;
+
   return `
     <!DOCTYPE html>
     <html>
@@ -89,7 +122,7 @@ function generateOrderEmailHtml(order: OrderEmailRequest): string {
         
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #a78b7d 0%, #8b7355 100%); padding: 32px; text-align: center;">
-          <img src="https://glow-and-heal-hub.lovable.app/logo.png" alt="MeYounger" style="height: 50px; margin-bottom: 16px;" />
+          ${logoHtml}
           <h1 style="margin: 0; color: white; font-size: 24px; font-weight: 600;">Order Confirmed</h1>
           <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">Thank you for your purchase!</p>
         </div>
@@ -126,18 +159,20 @@ function generateOrderEmailHtml(order: OrderEmailRequest): string {
           
           <!-- Totals -->
           <div style="border-top: 2px solid #e5e7eb; padding-top: 16px;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-              <span style="color: #6b7280; font-size: 14px;">Subtotal</span>
-              <span style="color: #374151; font-size: 14px;">${formatCurrency(order.subtotal, order.currency)}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-              <span style="color: #6b7280; font-size: 14px;">Shipping</span>
-              <span style="color: #374151; font-size: 14px;">${order.shipping === 0 ? 'Free' : formatCurrency(order.shipping, order.currency)}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; padding-top: 12px; border-top: 1px solid #e5e7eb;">
-              <span style="color: #111827; font-size: 16px; font-weight: 600;">Total</span>
-              <span style="color: #111827; font-size: 16px; font-weight: 600;">${formatCurrency(order.total, order.currency)}</span>
-            </div>
+            <table style="width: 100%;">
+              <tr>
+                <td style="color: #6b7280; font-size: 14px; padding: 4px 0;">Subtotal</td>
+                <td style="color: #374151; font-size: 14px; text-align: right; padding: 4px 0;">${formatCurrency(order.subtotal, order.currency)}</td>
+              </tr>
+              <tr>
+                <td style="color: #6b7280; font-size: 14px; padding: 4px 0;">Shipping</td>
+                <td style="color: #374151; font-size: 14px; text-align: right; padding: 4px 0;">${order.shipping === 0 ? 'Free' : formatCurrency(order.shipping, order.currency)}</td>
+              </tr>
+              <tr style="border-top: 1px solid #e5e7eb;">
+                <td style="color: #111827; font-size: 16px; font-weight: 600; padding: 12px 0 4px 0;">Total</td>
+                <td style="color: #111827; font-size: 16px; font-weight: 600; text-align: right; padding: 12px 0 4px 0;">${formatCurrency(order.total, order.currency)}</td>
+              </tr>
+            </table>
           </div>
           
           ${shippingAddressHtml}
@@ -170,7 +205,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log("Sending order confirmation email for order:", orderData.orderId);
 
-    const emailHtml = generateOrderEmailHtml(orderData);
+    const emailHtml = await generateOrderEmailHtml(orderData);
 
     // Send to customer - using verified subdomain orders.meyounger.co.uk
     const customerEmailResponse = await sendEmail(
