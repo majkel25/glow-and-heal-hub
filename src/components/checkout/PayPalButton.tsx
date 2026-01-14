@@ -137,6 +137,8 @@ export function PayPalButton({
       intent: "capture",
       components: "buttons",
       locale: "en_GB",
+      // Avoid the embedded card flow (often the source of infinite spinners)
+      "disable-funding": "card",
     });
 
     // Keep debug in dev only; PayPal debug mode can occasionally cause odd checkout behavior.
