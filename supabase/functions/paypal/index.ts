@@ -5,15 +5,23 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const PAYPAL_CLIENT_ID = Deno.env.get('PAYPAL_CLIENT_ID')!;
-const PAYPAL_CLIENT_SECRET = Deno.env.get('PAYPAL_CLIENT_SECRET')!;
+const PAYPAL_CLIENT_ID = Deno.env.get('PAYPAL_CLIENT_ID');
+const PAYPAL_CLIENT_SECRET = Deno.env.get('PAYPAL_CLIENT_SECRET');
 
 // Production PayPal API
 const PAYPAL_API_BASE = 'https://api-m.paypal.com';
 
 async function getAccessToken(): Promise<string> {
+  if (!PAYPAL_CLIENT_ID || !PAYPAL_CLIENT_SECRET) {
+    console.error('Missing PayPal env vars:', {
+      hasClientId: Boolean(PAYPAL_CLIENT_ID),
+      hasClientSecret: Boolean(PAYPAL_CLIENT_SECRET),
+    });
+    throw new Error('PayPal credentials are not configured');
+  }
+
   const auth = btoa(`${PAYPAL_CLIENT_ID}:${PAYPAL_CLIENT_SECRET}`);
-  
+
   const response = await fetch(`${PAYPAL_API_BASE}/v1/oauth2/token`, {
     method: 'POST',
     headers: {
@@ -24,9 +32,12 @@ async function getAccessToken(): Promise<string> {
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    console.error('Failed to get PayPal access token:', error);
-    throw new Error('Failed to authenticate with PayPal');
+    const errorText = await response.text();
+    console.error('Failed to get PayPal access token:', {
+      status: response.status,
+      body: errorText,
+    });
+    throw new Error(`PayPal auth failed (${response.status}): ${errorText || 'Unknown error'}`);
   }
 
   const data = await response.json();
