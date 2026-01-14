@@ -267,10 +267,11 @@ export function PayPalButton({
     };
   }, [paypalClientId]);
 
-  // Render PayPal buttons
+  // Render PayPal buttons - re-render when payment method changes to paypal
   useEffect(() => {
-    if (!sdkReady || !window.paypal || !paypalRef.current || disabled) return;
+    if (!sdkReady || !window.paypal || !paypalRef.current || disabled || paymentMethod !== "paypal") return;
 
+    // Clear and re-render
     paypalRef.current.innerHTML = "";
 
     const renderResult = window.paypal.Buttons({
@@ -335,7 +336,7 @@ export function PayPalButton({
       setLastPayPalError(message);
       onError(message);
     });
-  }, [sdkReady, createOrder, captureOrder, onSuccess, onError, disabled, reconcileOrderIfPossible]);
+  }, [sdkReady, paymentMethod, createOrder, captureOrder, onSuccess, onError, disabled, reconcileOrderIfPossible]);
 
   // Initialize Card Fields - wait for DOM elements to exist
   useEffect(() => {
@@ -497,7 +498,7 @@ export function PayPalButton({
 
       {/* PayPal button */}
       {paymentMethod === "paypal" && (
-        <div ref={paypalRef} />
+        <div ref={paypalRef} className="min-h-[150px]" />
       )}
 
       {/* Card fields */}
