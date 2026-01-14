@@ -7,19 +7,19 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// MeYounger logo as base64 - fetched and cached at function start
+// MeYounger logo as base64 - fetched and cached in-memory
 let logoBase64: string | null = null;
 
 async function getLogoBase64(): Promise<string> {
   if (logoBase64) return logoBase64;
-  
+
   try {
+    // Use the main site logo asset
     const response = await fetch("https://glow-and-heal-hub.lovable.app/logo.png");
     if (response.ok) {
       const arrayBuffer = await response.arrayBuffer();
-      // Convert ArrayBuffer to base64 string
       const bytes = new Uint8Array(arrayBuffer);
-      let binary = '';
+      let binary = "";
       for (let i = 0; i < bytes.byteLength; i++) {
         binary += String.fromCharCode(bytes[i]);
       }
@@ -29,19 +29,32 @@ async function getLogoBase64(): Promise<string> {
   } catch (e) {
     console.error("Failed to fetch logo:", e);
   }
-  
-  // Return empty string if fetch fails
+
   return "";
 }
 
-async function sendEmail(to: string[], from: string, subject: string, html: string) {
+async function sendEmail(
+  to: string[],
+  from: string,
+  subject: string,
+  html: string,
+  attachments?: Array<{
+    filename: string;
+    content: string; // base64
+    content_type: string;
+    cid?: string;
+  }>
+) {
+  const payload: Record<string, unknown> = { from, to, subject, html };
+  if (attachments?.length) payload.attachments = attachments;
+
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${RESEND_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from, to, subject, html }),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
@@ -82,7 +95,7 @@ function formatCurrency(amount: number, currency: string): string {
   }).format(amount);
 }
 
-async function generateOrderEmailHtml(order: OrderEmailRequest): Promise<string> {
+async function generateOrderEmailHtml(order: OrderEmailRequest, hasLogo: boolean): Promise<string> {
   const itemsHtml = order.items.map(item => `
     <tr>
       <td style="padding: 12px; border-bottom: 1px solid #eee;">${item.name}</td>
@@ -104,10 +117,9 @@ async function generateOrderEmailHtml(order: OrderEmailRequest): Promise<string>
     </div>
   ` : '';
 
-  // Get logo as base64 for embedding in email
-  const logoData = await getLogoBase64();
-  const logoHtml = logoData 
-    ? `<img src="data:image/png;base64,${logoData}" alt="MeYounger" style="height: 24px; margin-bottom: 12px; display: block; margin-left: auto; margin-right: auto;" />`
+  // Use CID-referenced image for best Outlook compatibility
+  const logoHtml = hasLogo
+    ? `<img src="cid:meyoungerlogo" alt="MeYounger" width="32" height="32" style="width: 32px; height: 32px; border-radius: 9999px; display: block; margin: 0 auto 12px auto; -ms-interpolation-mode: bicubic; background: transparent;" />`
     : `<div style="font-size: 16px; font-weight: bold; color: white; margin-bottom: 12px;">MeYounger</div>`;
 
   return `
@@ -205,14 +217,27 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log("Sending order confirmation email for order:", orderData.orderId);
 
-    const emailHtml = await generateOrderEmailHtml(orderData);
+    const logoAttachmentBase64 = await getLogoBase64();
+    const attachments = logoAttachmentBase64
+      ? [
+          {
+            filename: "logo.png",
+            content: logoAttachmentBase64,
+            content_type: "image/png",
+            cid: "meyoungerlogo",
+          },
+        ]
+      : undefined;
+
+    const emailHtml = await generateOrderEmailHtml(orderData, Boolean(logoAttachmentBase64));
 
     // Send to customer - using verified subdomain orders.meyounger.co.uk
     const customerEmailResponse = await sendEmail(
       [orderData.customerEmail],
       "MeYounger Orders <noreply@orders.meyounger.co.uk>",
       `Order Confirmed - ${orderData.orderId}`,
-      emailHtml
+      emailHtml,
+      attachments
     );
 
     console.log("Customer email sent:", customerEmailResponse);
@@ -222,7 +247,8 @@ const handler = async (req: Request): Promise<Response> => {
       ["orders@meyounger.co.uk"],
       "MeYounger Orders <noreply@orders.meyounger.co.uk>",
       `New Order Received - ${orderData.orderId}`,
-      emailHtml
+      emailHtml,
+      attachments
     );
 
     console.log("Business email sent:", businessEmailResponse);
