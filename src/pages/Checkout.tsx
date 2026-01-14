@@ -75,7 +75,7 @@ const Checkout = () => {
       title: "Payment successful!",
       description: `Order ID: ${orderId}. You will receive a confirmation email shortly.`,
     });
-    navigate("/order-confirmation");
+    navigate(`/order-confirmation?orderId=${encodeURIComponent(orderId)}&captured=1`);
   };
 
   const handlePayPalError = (error: string) => {
