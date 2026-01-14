@@ -56,7 +56,8 @@ export function PayPalButton({
     }
 
     const script = document.createElement("script");
-    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=GBP`;
+    // Use sandbox for testing - remove &debug=true for production
+    script.src = `https://www.sandbox.paypal.com/sdk/js?client-id=${clientId}&currency=GBP`;
     script.async = true;
     script.onload = () => {
       setSdkReady(true);
