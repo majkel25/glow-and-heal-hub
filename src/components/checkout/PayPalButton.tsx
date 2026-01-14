@@ -35,12 +35,76 @@ export function PayPalButton({
   disabled = false,
 }: PayPalButtonProps) {
   const paypalRef = useRef<HTMLDivElement>(null);
+  const lastOrderIdRef = useRef<string | null>(null);
+
   const [isLoading, setIsLoading] = useState(true);
   const [sdkReady, setSdkReady] = useState(false);
   const [lastOrderId, setLastOrderId] = useState<string | null>(null);
   const [lastPayPalError, setLastPayPalError] = useState<string | null>(null);
 
   const showDebug = import.meta.env.DEV;
+
+  const toSafeString = (value: unknown): string => {
+    if (typeof value === "string") return value;
+    if (value instanceof Error) return value.message;
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  };
+
+  const deriveUserMessage = (raw: string): string => {
+    const lower = raw.toLowerCase();
+
+    // PayPal-hosted decline screen
+    if (lower.includes("international regulations")) {
+      return "PayPal declined this transaction due to compliance restrictions. Please try a different card/PayPal account.";
+    }
+
+    // Common PayPal error codes
+    if (lower.includes("instrument_declined")) {
+      return "Your bank declined the payment method. Please try another card or PayPal balance.";
+    }
+
+    return raw || "Payment failed. Please try again.";
+  };
+
+  const reconcileOrderIfPossible = async (orderId: string): Promise<{ ok: boolean; message?: string }> => {
+    const { data: statusData, error: statusError } = await supabase.functions.invoke("paypal", {
+      body: { action: "get", orderId },
+    });
+
+    if (statusError) {
+      return { ok: false, message: statusError.message };
+    }
+
+    const status = String(statusData?.status || "");
+
+    // If buyer approved but our UI errored, try to capture so we can complete the flow.
+    if (status === "APPROVED" || status === "COMPLETED") {
+      const { data: captureData, error: captureError } = await supabase.functions.invoke("paypal", {
+        body: { action: "capture", orderId },
+      });
+
+      if (captureError) {
+        return { ok: false, message: captureError.message };
+      }
+
+      if (captureData?.success) {
+        onSuccess(captureData.orderId || orderId);
+        return { ok: true };
+      }
+
+      return { ok: false, message: `Payment capture failed: ${toSafeString(captureData)}` };
+    }
+
+    if (status === "DECLINED" || status === "VOIDED") {
+      return { ok: false, message: "This transaction was declined by PayPal. Please try a different payment method." };
+    }
+
+    return { ok: false };
+  };
 
   // Load PayPal SDK
   useEffect(() => {
@@ -121,60 +185,71 @@ export function PayPalButton({
           });
 
           if (error) throw new Error(error.message);
-          if (!data?.orderId)
-            throw new Error(`No order ID returned: ${JSON.stringify(data)}`);
+          if (!data?.orderId) {
+            const msg = data?.error ? String(data.error) : `No order ID returned: ${toSafeString(data)}`;
+            throw new Error(msg);
+          }
 
+          lastOrderIdRef.current = data.orderId;
           setLastOrderId(data.orderId);
           return data.orderId;
         } catch (err) {
-          const message =
-            err instanceof Error
-              ? err.message
-              : `Failed to create order: ${JSON.stringify(err)}`;
+          const raw = toSafeString(err);
+          const userMessage = deriveUserMessage(raw);
           console.error("Error creating PayPal order:", err);
-          setLastPayPalError(message);
-          onError(message);
+          setLastPayPalError(raw);
+          onError(userMessage);
           throw err;
         }
       },
       onApprove: async (data) => {
         try {
-          const { data: captureData, error } = await supabase.functions.invoke(
-            "paypal",
-            {
-              body: { action: "capture", orderId: data.orderID },
-            }
-          );
+          lastOrderIdRef.current = data.orderID;
+          setLastOrderId(data.orderID);
+
+          const { data: captureData, error } = await supabase.functions.invoke("paypal", {
+            body: { action: "capture", orderId: data.orderID },
+          });
 
           if (error) throw new Error(error.message);
           if (!captureData?.success) {
-            throw new Error(`Payment capture failed: ${JSON.stringify(captureData)}`);
+            const msg = captureData?.error
+              ? String(captureData.error)
+              : `Payment capture failed: ${toSafeString(captureData)}`;
+            throw new Error(msg);
           }
 
           onSuccess(captureData.orderId);
         } catch (err) {
-          const message =
-            err instanceof Error
-              ? err.message
-              : `Failed to process payment: ${JSON.stringify(err)}`;
+          const raw = toSafeString(err);
+          const userMessage = deriveUserMessage(raw);
           console.error("Error capturing PayPal order:", err);
-          setLastPayPalError(message);
-          onError(message);
+          setLastPayPalError(raw);
+          onError(userMessage);
         }
       },
       onError: (err) => {
-        const message =
-          err instanceof Error
-            ? err.message
-            : `PayPal error: ${JSON.stringify(err)}`;
+        const raw = toSafeString(err);
         console.error("PayPal error:", err);
-        setLastPayPalError(message);
-        onError(message);
+        setLastPayPalError(raw);
+
+        const orderId = lastOrderIdRef.current;
+        if (!orderId) {
+          onError(deriveUserMessage(raw));
+          return;
+        }
+
+        (async () => {
+          const result = await reconcileOrderIfPossible(orderId);
+          if (result.ok) return;
+
+          const message = deriveUserMessage(result.message || raw);
+          onError(message);
+        })();
       },
       onCancel: () => {
         console.log("Payment cancelled by user");
       },
-    }).render(paypalRef.current);
 
     Promise.resolve(renderResult).catch((err: unknown) => {
       const message =

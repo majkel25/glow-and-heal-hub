@@ -33,16 +33,19 @@ async function getAccessToken(): Promise<string> {
   return data.access_token;
 }
 
-async function createOrder(accessToken: string, orderData: {
-  amount: number;
-  currency: string;
-  items: Array<{ name: string; quantity: number; unit_amount: number }>;
-  returnUrl?: string;
-  cancelUrl?: string;
-}): Promise<{ id: string; status: string }> {
+async function createOrder(
+  accessToken: string,
+  orderData: {
+    amount: number;
+    currency: string;
+    items: Array<{ name: string; quantity: number; unit_amount: number }>;
+    returnUrl?: string;
+    cancelUrl?: string;
+  },
+): Promise<{ ok: true; id: string; status: string } | { ok: false; error: string }> {
   const { amount, currency, items, returnUrl, cancelUrl } = orderData;
-  
-  const itemTotal = items.reduce((sum, item) => sum + (item.unit_amount * item.quantity), 0);
+
+  const itemTotal = items.reduce((sum, item) => sum + item.unit_amount * item.quantity, 0);
   const shipping = amount - itemTotal;
 
   const response = await fetch(`${PAYPAL_API_BASE}/v2/checkout/orders`, {
@@ -88,15 +91,41 @@ async function createOrder(accessToken: string, orderData: {
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    console.error('Failed to create PayPal order:', error);
-    throw new Error('Failed to create PayPal order');
+    const errorText = await response.text();
+    console.error('Failed to create PayPal order:', errorText);
+    return { ok: false, error: errorText || 'Failed to create PayPal order' };
   }
 
-  return await response.json();
+  const data = await response.json();
+  return { ok: true, id: data.id, status: data.status };
 }
 
-async function captureOrder(accessToken: string, orderId: string): Promise<{ id: string; status: string; payer?: unknown }> {
+async function getOrder(
+  accessToken: string,
+  orderId: string,
+): Promise<{ ok: true; id: string; status: string } | { ok: false; error: string }> {
+  const response = await fetch(`${PAYPAL_API_BASE}/v2/checkout/orders/${orderId}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to get PayPal order:', errorText);
+    return { ok: false, error: errorText || 'Failed to get PayPal order' };
+  }
+
+  const data = await response.json();
+  return { ok: true, id: data.id, status: data.status };
+}
+
+async function captureOrder(
+  accessToken: string,
+  orderId: string,
+): Promise<{ ok: true; id: string; status: string } | { ok: false; error: string }> {
   const response = await fetch(`${PAYPAL_API_BASE}/v2/checkout/orders/${orderId}/capture`, {
     method: 'POST',
     headers: {
@@ -106,12 +135,13 @@ async function captureOrder(accessToken: string, orderId: string): Promise<{ id:
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    console.error('Failed to capture PayPal order:', error);
-    throw new Error('Failed to capture PayPal order');
+    const errorText = await response.text();
+    console.error('Failed to capture PayPal order:', errorText);
+    return { ok: false, error: errorText || 'Failed to capture PayPal order' };
   }
 
-  return await response.json();
+  const data = await response.json();
+  return { ok: true, id: data.id, status: data.status };
 }
 
 serve(async (req) => {
@@ -122,47 +152,83 @@ serve(async (req) => {
 
   try {
     const { action, orderData, orderId } = await req.json();
-    
+
     console.log(`PayPal action: ${action}`);
-    
+
     const accessToken = await getAccessToken();
 
     if (action === 'create') {
       if (!orderData) {
-        throw new Error('Order data is required for create action');
+        return new Response(JSON.stringify({ success: false, error: 'Order data is required for create action' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
-      
-      const order = await createOrder(accessToken, orderData);
-      console.log('PayPal order created:', order.id);
-      
-      return new Response(JSON.stringify({ orderId: order.id }), {
+
+      const created = await createOrder(accessToken, orderData);
+      if (!created.ok) {
+        return new Response(JSON.stringify({ success: false, error: created.error }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      console.log('PayPal order created:', created.id, created.status);
+
+      return new Response(JSON.stringify({ orderId: created.id, status: created.status }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
-    } 
-    
+    }
+
+    if (action === 'get') {
+      if (!orderId) {
+        return new Response(JSON.stringify({ success: false, error: 'Order ID is required for get action' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const order = await getOrder(accessToken, orderId);
+      if (!order.ok) {
+        return new Response(JSON.stringify({ success: false, error: order.error }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true, orderId: order.id, status: order.status }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     if (action === 'capture') {
       if (!orderId) {
-        throw new Error('Order ID is required for capture action');
+        return new Response(JSON.stringify({ success: false, error: 'Order ID is required for capture action' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
-      
-      const captureData = await captureOrder(accessToken, orderId);
-      console.log('PayPal order captured:', captureData.id, captureData.status);
-      
-      return new Response(JSON.stringify({ 
-        success: captureData.status === 'COMPLETED',
-        orderId: captureData.id,
-        status: captureData.status,
+
+      const captured = await captureOrder(accessToken, orderId);
+      if (!captured.ok) {
+        return new Response(JSON.stringify({ success: false, error: captured.error }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      console.log('PayPal order captured:', captured.id, captured.status);
+
+      return new Response(JSON.stringify({
+        success: captured.status === 'COMPLETED',
+        orderId: captured.id,
+        status: captured.status,
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    throw new Error(`Unknown action: ${action}`);
+    return new Response(JSON.stringify({ success: false, error: `Unknown action: ${action}` }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('PayPal edge function error:', errorMessage);
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 500,
+    return new Response(JSON.stringify({ success: false, error: errorMessage }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
