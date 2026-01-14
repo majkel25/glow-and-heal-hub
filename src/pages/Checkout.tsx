@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCart } from "@/contexts/CartContext";
-import { ArrowLeft, ShoppingBag, Lock, Truck, CreditCard } from "lucide-react";
+import { ArrowLeft, ShoppingBag, Lock, Truck } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { z } from "zod";
+import { PayPalButton } from "@/components/checkout/PayPalButton";
 
 const checkoutSchema = z.object({
   email: z.string().trim().email("Please enter a valid email address"),
@@ -48,9 +49,7 @@ const Checkout = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const validateForm = (): boolean => {
     const result = checkoutSchema.safeParse(form);
     if (!result.success) {
       const fieldErrors: Partial<Record<keyof CheckoutForm, string>> = {};
@@ -60,21 +59,31 @@ const Checkout = () => {
         }
       });
       setErrors(fieldErrors);
-      return;
+      return false;
     }
+    return true;
+  };
 
-    setIsProcessing(true);
-    
-    // Simulate payment processing
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    
+  const isFormValid = (): boolean => {
+    const result = checkoutSchema.safeParse(form);
+    return result.success;
+  };
+
+  const handlePayPalSuccess = (orderId: string) => {
     clearCart();
     toast({
-      title: "Order placed successfully!",
-      description: "You will receive a confirmation email shortly.",
+      title: "Payment successful!",
+      description: `Order ID: ${orderId}. You will receive a confirmation email shortly.`,
     });
     navigate("/order-confirmation");
-    setIsProcessing(false);
+  };
+
+  const handlePayPalError = (error: string) => {
+    toast({
+      title: "Payment failed",
+      description: error,
+      variant: "destructive",
+    });
   };
 
   if (items.length === 0) {
@@ -115,7 +124,7 @@ const Checkout = () => {
           <div className="grid lg:grid-cols-2 gap-12">
             {/* Checkout Form */}
             <div>
-              <form onSubmit={handleSubmit} className="space-y-8">
+              <div className="space-y-8">
                 {/* Contact */}
                 <div className="space-y-4">
                   <h2 className="text-lg font-semibold text-foreground">Contact</h2>
@@ -226,33 +235,26 @@ const Checkout = () => {
                   </div>
                 </div>
 
-                {/* Payment placeholder */}
+                {/* Payment with PayPal */}
                 <div className="space-y-4">
                   <h2 className="text-lg font-semibold text-foreground">Payment</h2>
                   <div className="bg-card rounded-xl p-6 border border-border">
-                    <div className="flex items-center gap-3 text-muted-foreground">
-                      <CreditCard className="w-5 h-5" />
-                      <span className="text-sm">Payment processing will be available soon. Orders are currently for demo purposes.</span>
-                    </div>
+                    {!isFormValid() && (
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Please complete the shipping information above to proceed with payment.
+                      </p>
+                    )}
+                    <PayPalButton
+                      items={items}
+                      totalAmount={totalPrice}
+                      shippingCost={shippingCost}
+                      onSuccess={handlePayPalSuccess}
+                      onError={handlePayPalError}
+                      disabled={!isFormValid()}
+                    />
                   </div>
                 </div>
-
-                <Button 
-                  type="submit" 
-                  size="lg" 
-                  className="w-full"
-                  disabled={isProcessing}
-                >
-                  {isProcessing ? (
-                    "Processing..."
-                  ) : (
-                    <>
-                      <Lock className="w-4 h-4 mr-2" />
-                      Place Order • £{orderTotal.toFixed(2)}
-                    </>
-                  )}
-                </Button>
-              </form>
+              </div>
             </div>
 
             {/* Order Summary */}
