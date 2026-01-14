@@ -14,8 +14,8 @@ async function getLogoBase64(): Promise<string> {
   if (logoBase64) return logoBase64;
 
   try {
-    // Use the main site logo asset
-    const response = await fetch("https://glow-and-heal-hub.lovable.app/logo.png");
+    // Use the correctly-sized email logo asset
+    const response = await fetch("https://glow-and-heal-hub.lovable.app/email-logo.png");
     if (response.ok) {
       const arrayBuffer = await response.arrayBuffer();
       const bytes = new Uint8Array(arrayBuffer);
@@ -117,9 +117,9 @@ async function generateOrderEmailHtml(order: OrderEmailRequest, hasLogo: boolean
     </div>
   ` : '';
 
-  // Use CID-referenced image for best Outlook compatibility
+  // Use CID-referenced image for best Outlook compatibility - no resizing, use natural size
   const logoHtml = hasLogo
-    ? `<img src="cid:meyoungerlogo" alt="MeYounger" width="32" height="32" style="width: 32px; height: 32px; border-radius: 9999px; display: block; margin: 0 auto 12px auto; -ms-interpolation-mode: bicubic; background: transparent;" />`
+    ? `<img src="cid:meyoungerlogo" alt="MeYounger" style="display: block; margin: 0 auto 12px auto; -ms-interpolation-mode: bicubic;" />`
     : `<div style="font-size: 16px; font-weight: bold; color: white; margin-bottom: 12px;">MeYounger</div>`;
 
   return `
