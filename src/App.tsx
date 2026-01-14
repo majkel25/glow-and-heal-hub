@@ -23,8 +23,8 @@ const App = () => (
       <CartProvider>
         <Toaster />
         <Sonner />
-        <CartDrawer />
         <BrowserRouter>
+          <CartDrawer />
           <ScrollToTop />
           <Routes>
             <Route path="/" element={<Index />} />
