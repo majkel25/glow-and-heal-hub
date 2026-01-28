@@ -36,7 +36,7 @@ export const fnctionProducts: FnctionProduct[] = [
     id: "calm",
     name: "CALM",
     brand: "F+NCTION",
-    price: 1.00,
+    price: 105.00,
     image: "https://fnction.co/cdn/shop/files/New_Web_Images_EH-02.png?v=1752285638&width=800",
     images: [
       "https://fnction.co/cdn/shop/files/New_Web_Images_EH-02.png?v=1752285638&width=1445",
