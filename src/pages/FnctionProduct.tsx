@@ -174,24 +174,36 @@ const FnctionProduct = () => {
 
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button 
-                  size="lg" 
-                  className="flex-1 group py-6 sm:py-4 text-base" 
-                  disabled={product.badge === "Coming Soon"}
-                  onClick={handleAddToCart}
-                >
-                  <ShoppingBag className="w-5 h-5 mr-2" />
-                  {product.badge === "Coming Soon" ? "Coming Soon" : "Add to Cart"}
-                </Button>
-                <Button 
-                  size="lg" 
-                  variant="outline" 
-                  className="flex-1 py-6 sm:py-4 text-base"
-                  disabled={product.badge === "Coming Soon"}
-                  onClick={handleBuyNow}
-                >
-                  Buy Now
-                </Button>
+                {product.badge === "Sold Out" ? (
+                  <Button 
+                    size="lg" 
+                    className="flex-1 py-6 sm:py-4 text-base" 
+                    disabled
+                  >
+                    Sold Out
+                  </Button>
+                ) : (
+                  <>
+                    <Button 
+                      size="lg" 
+                      className="flex-1 group py-6 sm:py-4 text-base" 
+                      disabled={product.badge === "Coming Soon"}
+                      onClick={handleAddToCart}
+                    >
+                      <ShoppingBag className="w-5 h-5 mr-2" />
+                      {product.badge === "Coming Soon" ? "Coming Soon" : "Add to Cart"}
+                    </Button>
+                    <Button 
+                      size="lg" 
+                      variant="outline" 
+                      className="flex-1 py-6 sm:py-4 text-base"
+                      disabled={product.badge === "Coming Soon"}
+                      onClick={handleBuyNow}
+                    >
+                      Buy Now
+                    </Button>
+                  </>
+                )}
               </div>
 
               {/* Trust Badges */}
