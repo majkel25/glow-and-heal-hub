@@ -697,6 +697,28 @@ export function PayPalButton({
     <div className={disabled ? "opacity-50 pointer-events-none" : ""}>
       {/* Payment method tabs */}
       <div className="grid w-full gap-2 mb-4">
+        {applePayEligible && (
+          <Button
+            type="button"
+            variant={paymentMethod === "applepay" ? "default" : "outline"}
+            className="w-full"
+            onClick={() => setPaymentMethod("applepay")}
+          >
+            <ApplePayLogo className="w-12 h-5 mr-2" />
+            Apple Pay
+          </Button>
+        )}
+
+        <Button
+          type="button"
+          variant={paymentMethod === "card" ? "default" : "outline"}
+          className="w-full"
+          onClick={() => setPaymentMethod("card")}
+        >
+          <CreditCard className="w-5 h-5 mr-2" />
+          Card
+        </Button>
+
         <Button
           type="button"
           variant={paymentMethod === "paypal" ? "default" : "outline"}
@@ -710,28 +732,6 @@ export function PayPalButton({
           />
           PayPal
         </Button>
-
-        <Button
-          type="button"
-          variant={paymentMethod === "card" ? "default" : "outline"}
-          className="w-full"
-          onClick={() => setPaymentMethod("card")}
-        >
-          <CreditCard className="w-5 h-5 mr-2" />
-          Card
-        </Button>
-
-        {applePayEligible && (
-          <Button
-            type="button"
-            variant={paymentMethod === "applepay" ? "default" : "outline"}
-            className="w-full"
-            onClick={() => setPaymentMethod("applepay")}
-          >
-            <ApplePayLogo className="w-12 h-5 mr-2" />
-            Apple Pay
-          </Button>
-        )}
       </div>
 
       {/* PayPal button */}
