@@ -160,7 +160,7 @@ export const fnctionProducts: FnctionProduct[] = [
     ],
     description: "Optimal Brain Performance Vitamin Drink - 4x 250ml Ready-to-Drink Cans",
     fullDescription: "Our Morning Cognitive Enhancement Supplement is a revolutionary blend designed to kickstart your day with a powerful formula that boosts brain function, focus, and provides an energised start. With Marine Collagen for skin, joint and muscle repair. Still in development - coming soon!",
-    badge: "Coming Soon",
+    badge: "Sold Out",
     category: "Focus & Energy",
     flavor: "Raspberry Lemonade",
     packSize: "4x 250ml Cans",
