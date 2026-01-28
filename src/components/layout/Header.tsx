@@ -7,9 +7,8 @@ import { useCart } from "@/contexts/CartContext";
 import logo from "@/assets/logo.png";
 
 const navigation = [
-  { name: "Shop All", href: "#products" },
-  { name: "Skincare", href: "#categories" },
-  { name: "Medical", href: "#categories" },
+  { name: "Supplements", href: "#products" },
+  { name: "Medical", href: "#sedona-wellness" },
   { name: "Devices", href: "#sedona-wellness" },
   { name: "About", href: "/about" },
 ];
