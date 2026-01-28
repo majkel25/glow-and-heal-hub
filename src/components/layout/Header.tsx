@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X, ShoppingBag, Search, User, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,24 @@ const navigation = [
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { totalItems, setIsCartOpen } = useCart();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleAnchorClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    e.preventDefault();
+    setMobileMenuOpen(false);
+    
+    // If we're not on the homepage, navigate there first with the hash
+    if (location.pathname !== "/") {
+      navigate("/" + href);
+    } else {
+      // We're on the homepage, just scroll to the element
+      const element = document.querySelector(href);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth" });
+      }
+    }
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border/50">
@@ -44,6 +62,7 @@ export function Header() {
                 <a
                   key={item.name}
                   href={item.href}
+                  onClick={(e) => handleAnchorClick(e, item.href)}
                   className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors duration-200"
                 >
                   {item.name}
@@ -110,8 +129,8 @@ export function Header() {
                 <a
                   key={item.name}
                   href={item.href}
+                  onClick={(e) => handleAnchorClick(e, item.href)}
                   className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-slate-blue-light rounded-lg transition-colors"
-                  onClick={() => setMobileMenuOpen(false)}
                 >
                   {item.name}
                 </a>
