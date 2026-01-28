@@ -696,7 +696,7 @@ export function PayPalButton({
   return (
     <div className={disabled ? "opacity-50 pointer-events-none" : ""}>
       {/* Payment method tabs */}
-      <div className="grid w-full gap-2 mb-4">
+      <div className="grid w-full gap-2 mb-6">
         {applePayEligible && (
           <Button
             type="button"
