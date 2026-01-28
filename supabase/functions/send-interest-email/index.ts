@@ -163,7 +163,7 @@ serve(async (req: Request): Promise<Response> => {
     `;
 
     await sendEmail(
-      ["hello@meyounger.co.uk"],
+      ["info@meyounger.co.uk"],
       `New Interest Registration: ${name}`,
       businessEmailHtml
     );
