@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Phone, Mail, MapPin, Check, Zap, Heart, Shield } from "lucide-react";
 import { sedonaProducts } from "@/data/sedonaProducts";
+import { supabase } from "@/integrations/supabase/client";
 
 const SedonaConsultation = () => {
   const { toast } = useToast();
@@ -35,25 +36,44 @@ const SedonaConsultation = () => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate form submission
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      const { data, error } = await supabase.functions.invoke("send-callback-email", {
+        body: formData,
+      });
 
-    toast({
-      title: "Callback Request Received",
-      description: "Thank you for your interest! Our team will contact you within 24-48 hours.",
-    });
+      if (error) {
+        throw new Error(error.message);
+      }
 
-    setFormData({
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      company: "",
-      productInterest: "",
-      useCase: "",
-      message: "",
-    });
-    setIsSubmitting(false);
+      if (!data?.success) {
+        throw new Error(data?.error || "Failed to send callback request");
+      }
+
+      toast({
+        title: "Callback Request Received",
+        description: "Thank you for your interest! Our team will contact you within 24-48 hours. A confirmation email has been sent to you.",
+      });
+
+      setFormData({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        company: "",
+        productInterest: "",
+        useCase: "",
+        message: "",
+      });
+    } catch (error) {
+      console.error("Error submitting callback request:", error);
+      toast({
+        title: "Error",
+        description: "Failed to submit your request. Please try again or contact us directly.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const benefits = [
