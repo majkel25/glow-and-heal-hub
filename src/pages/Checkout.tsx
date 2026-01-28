@@ -314,22 +314,33 @@ const Checkout = () => {
                   </div>
                 </div>
 
-                {/* Payment with PayPal/Card */}
-                <div className="space-y-4">
-                  <h2 className="text-lg font-semibold text-foreground">Payment</h2>
-                  <div className="bg-card rounded-xl p-6 border border-border">
-                    <PayPalButton
-                      items={items}
-                      totalAmount={totalPrice}
-                      shippingCost={shippingCost}
-                      onSuccess={handlePayPalSuccess}
-                      onError={handlePayPalError}
-                      disabled={!isFormValid()}
-                      onApplePayContactReceived={handleApplePayContactReceived}
-                      allowApplePayExpress={false}
-                    />
+                {/* Payment with PayPal/Card - Only show when form is valid */}
+                {isFormValid() ? (
+                  <div className="space-y-4">
+                    <h2 className="text-lg font-semibold text-foreground">Payment</h2>
+                    <div className="bg-card rounded-xl p-6 border border-border">
+                      <PayPalButton
+                        items={items}
+                        totalAmount={totalPrice}
+                        shippingCost={shippingCost}
+                        onSuccess={handlePayPalSuccess}
+                        onError={handlePayPalError}
+                        disabled={false}
+                        onApplePayContactReceived={handleApplePayContactReceived}
+                        allowApplePayExpress={false}
+                      />
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-4">
+                    <h2 className="text-lg font-semibold text-foreground">Payment</h2>
+                    <div className="bg-muted/50 rounded-xl p-6 border border-border">
+                      <p className="text-sm text-muted-foreground text-center">
+                        Please complete the form above to see payment options
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
