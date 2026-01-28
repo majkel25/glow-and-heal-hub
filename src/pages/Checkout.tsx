@@ -179,6 +179,31 @@ const Checkout = () => {
             {/* Checkout Form */}
             <div>
               <div className="space-y-8">
+                {/* Apple Pay Express Checkout - Top */}
+                <div className="space-y-4">
+                  <h2 className="text-lg font-semibold text-foreground">Express Checkout</h2>
+                  <div className="bg-card rounded-xl p-6 border border-border">
+                    <PayPalButton
+                      items={items}
+                      totalAmount={totalPrice}
+                      shippingCost={shippingCost}
+                      onSuccess={handlePayPalSuccess}
+                      onError={handlePayPalError}
+                      disabled={true}
+                      onApplePayContactReceived={handleApplePayContactReceived}
+                      allowApplePayExpress={true}
+                      expressCheckoutOnly={true}
+                    />
+                  </div>
+                </div>
+
+                {/* Or Divider */}
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 h-px bg-border" />
+                  <span className="text-sm text-muted-foreground font-medium">or</span>
+                  <div className="flex-1 h-px bg-border" />
+                </div>
+
                 {/* Contact */}
                 <div className="space-y-4">
                   <h2 className="text-lg font-semibold text-foreground">Contact</h2>
@@ -289,15 +314,10 @@ const Checkout = () => {
                   </div>
                 </div>
 
-                {/* Payment with PayPal */}
+                {/* Payment with PayPal/Card */}
                 <div className="space-y-4">
                   <h2 className="text-lg font-semibold text-foreground">Payment</h2>
                   <div className="bg-card rounded-xl p-6 border border-border">
-                    {!isFormValid() && (
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Complete shipping info above, or use <strong>Apple Pay</strong> for express checkout.
-                      </p>
-                    )}
                     <PayPalButton
                       items={items}
                       totalAmount={totalPrice}
@@ -306,7 +326,7 @@ const Checkout = () => {
                       onError={handlePayPalError}
                       disabled={!isFormValid()}
                       onApplePayContactReceived={handleApplePayContactReceived}
-                      allowApplePayExpress={true}
+                      allowApplePayExpress={false}
                     />
                   </div>
                 </div>
