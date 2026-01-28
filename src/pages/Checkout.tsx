@@ -9,7 +9,7 @@ import { useCart } from "@/contexts/CartContext";
 import { ArrowLeft, ShoppingBag, Lock, Truck, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { z } from "zod";
-import { PayPalButton, ApplePayContactDetails } from "@/components/checkout/PayPalButton";
+import { PayPalButton, ApplePayContactDetails, PayPalButtonProps } from "@/components/checkout/PayPalButton";
 import { supabase } from "@/integrations/supabase/client";
 
 const checkoutSchema = z.object({

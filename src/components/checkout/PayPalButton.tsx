@@ -101,7 +101,7 @@ export interface ApplePayContactDetails {
   postcode: string;
 }
 
-interface PayPalButtonProps {
+export interface PayPalButtonProps {
   items: CartItem[];
   totalAmount: number;
   shippingCost: number;
