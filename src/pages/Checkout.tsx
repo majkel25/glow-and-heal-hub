@@ -9,7 +9,7 @@ import { useCart } from "@/contexts/CartContext";
 import { ArrowLeft, ShoppingBag, Lock, Truck, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { z } from "zod";
-import { PayPalButton } from "@/components/checkout/PayPalButton";
+import { PayPalButton, ApplePayContactDetails } from "@/components/checkout/PayPalButton";
 import { supabase } from "@/integrations/supabase/client";
 
 const checkoutSchema = z.object({
@@ -70,14 +70,37 @@ const Checkout = () => {
     return result.success;
   };
 
-  const handlePayPalSuccess = async (orderId: string) => {
+  // Handle Apple Pay contact details - auto-fill the form
+  const handleApplePayContactReceived = (contact: ApplePayContactDetails) => {
+    setForm({
+      email: contact.email || form.email,
+      firstName: contact.firstName || form.firstName,
+      lastName: contact.lastName || form.lastName,
+      address: contact.address || form.address,
+      city: contact.city || form.city,
+      postcode: contact.postcode || form.postcode,
+      phone: contact.phone || form.phone,
+    });
+    // Clear any validation errors since Apple Pay provided the data
+    setErrors({});
+  };
+
+  const handlePayPalSuccess = async (orderId: string, applePayContact?: ApplePayContactDetails) => {
+    // Use Apple Pay contact details if provided (express checkout), otherwise use form data
+    const customerEmail = applePayContact?.email || form.email;
+    const customerFirstName = applePayContact?.firstName || form.firstName;
+    const customerLastName = applePayContact?.lastName || form.lastName;
+    const customerAddress = applePayContact?.address || form.address;
+    const customerCity = applePayContact?.city || form.city;
+    const customerPostcode = applePayContact?.postcode || form.postcode;
+
     // Send order confirmation emails
     try {
       await supabase.functions.invoke("send-order-email", {
         body: {
           orderId,
-          customerEmail: form.email,
-          customerName: `${form.firstName} ${form.lastName}`,
+          customerEmail,
+          customerName: `${customerFirstName} ${customerLastName}`,
           items: items.map((item) => ({
             name: item.name,
             quantity: item.quantity,
@@ -88,9 +111,9 @@ const Checkout = () => {
           total: totalPrice + shippingCost,
           currency: "GBP",
           shippingAddress: {
-            address: form.address,
-            city: form.city,
-            postcode: form.postcode,
+            address: customerAddress,
+            city: customerCity,
+            postcode: customerPostcode,
             country: "United Kingdom",
           },
         },
@@ -272,7 +295,7 @@ const Checkout = () => {
                   <div className="bg-card rounded-xl p-6 border border-border">
                     {!isFormValid() && (
                       <p className="text-sm text-muted-foreground mb-4">
-                        Please complete the shipping information above to proceed with payment.
+                        Complete shipping info above, or use <strong>Apple Pay</strong> for express checkout.
                       </p>
                     )}
                     <PayPalButton
@@ -282,6 +305,8 @@ const Checkout = () => {
                       onSuccess={handlePayPalSuccess}
                       onError={handlePayPalError}
                       disabled={!isFormValid()}
+                      onApplePayContactReceived={handleApplePayContactReceived}
+                      allowApplePayExpress={true}
                     />
                   </div>
                 </div>

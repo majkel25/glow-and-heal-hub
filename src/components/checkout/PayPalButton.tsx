@@ -4,6 +4,7 @@ import { CartItem } from "@/contexts/CartContext";
 import { Loader2, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 // Official Apple Pay logo mark SVG
 const ApplePayLogo = ({ className }: { className?: string }) => (
@@ -68,24 +69,48 @@ declare global {
     requiredShippingContactFields?: string[];
   }
 
+  interface ApplePayContact {
+    givenName?: string;
+    familyName?: string;
+    emailAddress?: string;
+    phoneNumber?: string;
+    addressLines?: string[];
+    locality?: string;
+    postalCode?: string;
+    countryCode?: string;
+  }
+
   interface ApplePaySessionInstance {
     begin: () => void;
     abort: () => void;
     completeMerchantValidation: (merchantSession: unknown) => void;
     completePayment: (status: number) => void;
     onvalidatemerchant: ((event: { validationURL: string }) => void) | null;
-    onpaymentauthorized: ((event: { payment: { token: unknown; billingContact?: unknown } }) => void) | null;
+    onpaymentauthorized: ((event: { payment: { token: unknown; billingContact?: ApplePayContact; shippingContact?: ApplePayContact } }) => void) | null;
     oncancel: (() => void) | null;
   }
+}
+
+export interface ApplePayContactDetails {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  postcode: string;
 }
 
 interface PayPalButtonProps {
   items: CartItem[];
   totalAmount: number;
   shippingCost: number;
-  onSuccess: (orderId: string) => void;
+  onSuccess: (orderId: string, applePayContact?: ApplePayContactDetails) => void;
   onError: (error: string) => void;
   disabled?: boolean;
+  onApplePayContactReceived?: (contact: ApplePayContactDetails) => void;
+  /** When true, Apple Pay is always available for express checkout even if disabled=true */
+  allowApplePayExpress?: boolean;
 }
 
 export function PayPalButton({
@@ -95,6 +120,8 @@ export function PayPalButton({
   onSuccess,
   onError,
   disabled = false,
+  onApplePayContactReceived,
+  allowApplePayExpress = true,
 }: PayPalButtonProps) {
   const paypalRef = useRef<HTMLDivElement>(null);
   const cardFieldsInstanceRef = useRef<ReturnType<NonNullable<Window["paypal"]>["CardFields"]> | null>(null);
@@ -589,10 +616,10 @@ export function PayPalButton({
         currencyCode: "GBP",
         merchantCapabilities: applePayConfig.merchantCapabilities,
         supportedNetworks: applePayConfig.supportedNetworks,
-        requiredBillingContactFields: ["name", "postalAddress"],
-        requiredShippingContactFields: [],
+        requiredBillingContactFields: ["name", "postalAddress", "email", "phone"],
+        requiredShippingContactFields: ["name", "postalAddress", "email", "phone"],
         total: {
-          label: "Glow & Heal Hub",
+          label: "MeYounger",
           amount: orderAmount,
           type: "final",
         },
@@ -604,7 +631,7 @@ export function PayPalButton({
         try {
           const { merchantSession } = await applepay.validateMerchant({
             validationUrl: event.validationURL,
-            displayName: "Glow & Heal Hub",
+            displayName: "MeYounger",
           });
           session.completeMerchantValidation(merchantSession);
         } catch (err) {
@@ -617,6 +644,30 @@ export function PayPalButton({
 
       session.onpaymentauthorized = async (event) => {
         try {
+          // Extract contact details from Apple Pay
+          const shippingContact = event.payment.shippingContact;
+          const billingContact = event.payment.billingContact;
+          
+          // Use shipping contact if available, fall back to billing contact
+          const contact = shippingContact || billingContact;
+          
+          const applePayContactDetails: ApplePayContactDetails = {
+            firstName: contact?.givenName || "",
+            lastName: contact?.familyName || "",
+            email: contact?.emailAddress || "",
+            phone: contact?.phoneNumber || "",
+            address: contact?.addressLines?.join(", ") || "",
+            city: contact?.locality || "",
+            postcode: contact?.postalCode || "",
+          };
+
+          console.log("Apple Pay contact details:", applePayContactDetails);
+
+          // Notify parent about contact details for express checkout
+          if (onApplePayContactReceived) {
+            onApplePayContactReceived(applePayContactDetails);
+          }
+
           // Create PayPal order first
           const orderId = await createOrder();
           lastOrderIdRef.current = orderId;
@@ -634,7 +685,7 @@ export function PayPalButton({
 
           // Capture the order
           const capturedId = await captureOrder(orderId);
-          onSuccess(capturedId);
+          onSuccess(capturedId, applePayContactDetails);
         } catch (err) {
           console.error("Apple Pay authorization failed:", err);
           session.completePayment(window.ApplePaySession!.STATUS_FAILURE);
@@ -693,8 +744,12 @@ export function PayPalButton({
     );
   }
 
+  // Apple Pay is always enabled for express checkout
+  const isApplePayDisabled = disabled && !allowApplePayExpress;
+  const isOtherMethodsDisabled = disabled;
+
   return (
-    <div className={disabled ? "opacity-50 pointer-events-none" : ""}>
+    <div>
       {/* Payment method tabs */}
       <div className="grid w-3/4 mx-auto gap-2 mb-6">
         {applePayEligible && (
@@ -706,14 +761,18 @@ export function PayPalButton({
           >
             <ApplePayLogo className="w-12 h-5 mr-2" />
             Apple Pay
+            {allowApplePayExpress && disabled && (
+              <span className="ml-2 text-xs bg-primary/20 px-2 py-0.5 rounded">Express</span>
+            )}
           </Button>
         )}
 
         <Button
           type="button"
           variant={paymentMethod === "card" ? "default" : "outline"}
-          className="w-full"
-          onClick={() => setPaymentMethod("card")}
+          className={cn("w-full", isOtherMethodsDisabled && "opacity-50")}
+          onClick={() => !isOtherMethodsDisabled && setPaymentMethod("card")}
+          disabled={isOtherMethodsDisabled}
         >
           <CreditCard className="w-5 h-5 mr-2" />
           Card
@@ -722,8 +781,9 @@ export function PayPalButton({
         <Button
           type="button"
           variant={paymentMethod === "paypal" ? "default" : "outline"}
-          className="w-full"
-          onClick={() => setPaymentMethod("paypal")}
+          className={cn("w-full", isOtherMethodsDisabled && "opacity-50")}
+          onClick={() => !isOtherMethodsDisabled && setPaymentMethod("paypal")}
+          disabled={isOtherMethodsDisabled}
         >
           <img
             src="https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_37x23.jpg"
@@ -735,7 +795,7 @@ export function PayPalButton({
       </div>
 
       {/* PayPal button */}
-      {paymentMethod === "paypal" && (
+      {paymentMethod === "paypal" && !isOtherMethodsDisabled && (
         <div ref={paypalRef} className="w-full min-h-[150px]" />
       )}
 
@@ -743,24 +803,31 @@ export function PayPalButton({
       {paymentMethod === "applepay" && (
         <div className="space-y-4">
           {applePayEligible ? (
-            <Button
-              type="button"
-              className="w-full bg-black hover:bg-black/90 text-white"
-              onClick={handleApplePayClick}
-              disabled={isApplePayProcessing}
-            >
-              {isApplePayProcessing ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <ApplePayLogo className="w-12 h-5 mr-2" />
-                  Pay with Apple Pay
-                </>
+            <>
+              {allowApplePayExpress && disabled && (
+                <p className="text-sm text-muted-foreground text-center mb-2">
+                  Skip the form - Apple Pay will collect your details
+                </p>
               )}
-            </Button>
+              <Button
+                type="button"
+                className="w-full bg-black hover:bg-black/90 text-white"
+                onClick={handleApplePayClick}
+                disabled={isApplePayProcessing || isApplePayDisabled}
+              >
+                {isApplePayProcessing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <ApplePayLogo className="w-12 h-5 mr-2" />
+                    Pay with Apple Pay
+                  </>
+                )}
+              </Button>
+            </>
           ) : (
             <div className="text-sm text-foreground bg-muted/50 border border-border rounded-lg p-3">
               Apple Pay is not available. This may be because:
