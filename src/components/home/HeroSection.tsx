@@ -22,10 +22,6 @@ export function HeroSection() {
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Content */}
           <div className="text-center lg:text-left">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-foreground/20 backdrop-blur-sm rounded-full mb-6 animate-fade-up">
-              <span className="w-2 h-2 rounded-full bg-primary-foreground animate-pulse" />
-              <span className="text-sm font-medium text-primary-foreground">New Collection Available</span>
-            </div>
             
             <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-light text-primary-foreground leading-tight mb-6 animate-fade-up delay-100">
               Medical Grade
