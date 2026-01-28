@@ -91,9 +91,15 @@ serve(async (req: Request): Promise<Response> => {
                       </ul>
                     </div>
                     
-                    <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 0;">
+                    <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 0 0 30px;">
                       In the meantime, explore our other ranges including F+NCTION supplements and Sedona Wellness devices.
                     </p>
+                    
+                    <div style="text-align: center;">
+                      <a href="https://meyounger.lovable.app/#products" style="display: inline-block; background-color: #8b7355; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-size: 14px; font-weight: 600;">
+                        Shop F+NCTION Supplements
+                      </a>
+                    </div>
                   </td>
                 </tr>
                 
