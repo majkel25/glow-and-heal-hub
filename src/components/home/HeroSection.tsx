@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Shield, Truck, Award } from "lucide-react";
 import heroImage from "@/assets/hero-aesthetic.jpg";
@@ -35,13 +36,17 @@ export function HeroSection() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start animate-fade-up delay-300">
-              <Button variant="outline" size="xl" className="group bg-transparent border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/10 hover:border-primary-foreground">
-                Shop Now
-                <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
-              </Button>
-              <Button variant="outline" size="xl" className="bg-transparent border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/10 hover:border-primary-foreground">
-                View Catalog
-              </Button>
+              <Link to="/coming-soon">
+                <Button variant="outline" size="xl" className="group bg-transparent border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/10 hover:border-primary-foreground">
+                  Shop Now
+                  <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                </Button>
+              </Link>
+              <Link to="/coming-soon">
+                <Button variant="outline" size="xl" className="bg-transparent border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/10 hover:border-primary-foreground">
+                  View Catalog
+                </Button>
+              </Link>
             </div>
 
             {/* Highlights */}

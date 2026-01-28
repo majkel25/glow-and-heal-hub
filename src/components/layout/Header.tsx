@@ -8,7 +8,7 @@ import logo from "@/assets/logo.png";
 
 const navigation = [
   { name: "Supplements", href: "#products" },
-  { name: "Medical", href: "#sedona-wellness" },
+  { name: "Medical", href: "/coming-soon" },
   { name: "Devices", href: "#sedona-wellness" },
   { name: "About", href: "/about" },
 ];
