@@ -111,6 +111,8 @@ interface PayPalButtonProps {
   onApplePayContactReceived?: (contact: ApplePayContactDetails) => void;
   /** When true, Apple Pay is always available for express checkout even if disabled=true */
   allowApplePayExpress?: boolean;
+  /** When true, only show Apple Pay button (for express checkout section) */
+  expressCheckoutOnly?: boolean;
 }
 
 export function PayPalButton({
@@ -122,6 +124,7 @@ export function PayPalButton({
   disabled = false,
   onApplePayContactReceived,
   allowApplePayExpress = true,
+  expressCheckoutOnly = false,
 }: PayPalButtonProps) {
   const paypalRef = useRef<HTMLDivElement>(null);
   const cardFieldsInstanceRef = useRef<ReturnType<NonNullable<Window["paypal"]>["CardFields"]> | null>(null);
@@ -748,31 +751,52 @@ export function PayPalButton({
   const isApplePayDisabled = disabled && !allowApplePayExpress;
   const isOtherMethodsDisabled = disabled;
 
+  // Express checkout only mode - just show Apple Pay
+  if (expressCheckoutOnly) {
+    return (
+      <div>
+        {applePayEligible ? (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground text-center">
+              Skip the form - Apple Pay will collect your details
+            </p>
+            <Button
+              type="button"
+              className="w-full bg-black hover:bg-black/90 text-white h-12"
+              onClick={handleApplePayClick}
+              disabled={isApplePayProcessing}
+            >
+              {isApplePayProcessing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <ApplePayLogo className="w-12 h-5 mr-2" />
+                  Pay with Apple Pay
+                </>
+              )}
+            </Button>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground text-center">
+            Apple Pay express checkout is only available on Safari (Mac/iOS).
+          </p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div>
       {/* Payment method tabs */}
       <div className="grid w-3/4 mx-auto gap-2 mb-6">
-        {applePayEligible && (
-          <Button
-            type="button"
-            variant={paymentMethod === "applepay" ? "default" : "outline"}
-            className="w-full"
-            onClick={() => setPaymentMethod("applepay")}
-          >
-            <ApplePayLogo className="w-12 h-5 mr-2" />
-            Apple Pay
-            {allowApplePayExpress && disabled && (
-              <span className="ml-2 text-xs bg-primary/20 px-2 py-0.5 rounded">Express</span>
-            )}
-          </Button>
-        )}
-
         <Button
           type="button"
           variant={paymentMethod === "card" ? "default" : "outline"}
-          className={cn("w-full", isOtherMethodsDisabled && "opacity-50")}
-          onClick={() => !isOtherMethodsDisabled && setPaymentMethod("card")}
-          disabled={isOtherMethodsDisabled}
+          className="w-full"
+          onClick={() => setPaymentMethod("card")}
         >
           <CreditCard className="w-5 h-5 mr-2" />
           Card
@@ -781,9 +805,8 @@ export function PayPalButton({
         <Button
           type="button"
           variant={paymentMethod === "paypal" ? "default" : "outline"}
-          className={cn("w-full", isOtherMethodsDisabled && "opacity-50")}
-          onClick={() => !isOtherMethodsDisabled && setPaymentMethod("paypal")}
-          disabled={isOtherMethodsDisabled}
+          className="w-full"
+          onClick={() => setPaymentMethod("paypal")}
         >
           <img
             src="https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_37x23.jpg"
@@ -795,51 +818,11 @@ export function PayPalButton({
       </div>
 
       {/* PayPal button */}
-      {paymentMethod === "paypal" && !isOtherMethodsDisabled && (
+      {paymentMethod === "paypal" && (
         <div ref={paypalRef} className="w-full min-h-[150px]" />
       )}
 
-      {/* Apple Pay */}
-      {paymentMethod === "applepay" && (
-        <div className="space-y-4">
-          {applePayEligible ? (
-            <>
-              {allowApplePayExpress && disabled && (
-                <p className="text-sm text-muted-foreground text-center mb-2">
-                  Skip the form - Apple Pay will collect your details
-                </p>
-              )}
-              <Button
-                type="button"
-                className="w-full bg-black hover:bg-black/90 text-white"
-                onClick={handleApplePayClick}
-                disabled={isApplePayProcessing || isApplePayDisabled}
-              >
-                {isApplePayProcessing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <ApplePayLogo className="w-12 h-5 mr-2" />
-                    Pay with Apple Pay
-                  </>
-                )}
-              </Button>
-            </>
-          ) : (
-            <div className="text-sm text-foreground bg-muted/50 border border-border rounded-lg p-3">
-              Apple Pay is not available. This may be because:
-              <ul className="list-disc ml-5 mt-2 space-y-1">
-                <li>You're not using Safari on a Mac or iOS device</li>
-                <li>Domain verification is pending in PayPal Dashboard</li>
-                <li>Apple Pay is not enabled for your PayPal account</li>
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Card fields */}
 
       {/* Card fields */}
       {paymentMethod === "card" && (
