@@ -435,7 +435,7 @@ export function PayPalButton({
     });
   }, [sdkReady, paymentMethod, createOrder, captureOrder, onSuccess, onError, disabled, reconcileOrderIfPossible]);
 
-  // Card Fields: create instance + check eligibility
+  // Card Fields: create instance + check eligibility with retry
   useEffect(() => {
     if (!sdkReady || !window.paypal?.CardFields || disabled || paymentMethod !== "card") {
       setCardFieldsEligible(false);
@@ -446,68 +446,80 @@ export function PayPalButton({
 
     setCardFieldsReady(false);
 
-    const cardFields = window.paypal.CardFields({
-      createOrder: async () => {
-        try {
-          return await createOrder();
-        } catch (err) {
+    // Sometimes PayPal needs a moment after SDK load before CardFields is truly ready
+    const attemptCardFields = (retryCount = 0) => {
+      const cardFields = window.paypal!.CardFields({
+        createOrder: async () => {
+          try {
+            return await createOrder();
+          } catch (err) {
+            const raw = toSafeString(err);
+            console.error("Error creating order for card payment:", err);
+            setLastPayPalError(raw);
+            onError(deriveUserMessage(raw));
+            throw err;
+          }
+        },
+        onApprove: async (data) => {
+          try {
+            lastOrderIdRef.current = data.orderID;
+            setLastOrderId(data.orderID);
+            const capturedId = await captureOrder(data.orderID);
+            onSuccess(capturedId);
+          } catch (err) {
+            const raw = toSafeString(err);
+            console.error("Error capturing card payment:", err);
+            setLastPayPalError(raw);
+            onError(deriveUserMessage(raw));
+          } finally {
+            setIsCardProcessing(false);
+          }
+        },
+        onError: (err) => {
           const raw = toSafeString(err);
-          console.error("Error creating order for card payment:", err);
+          console.error("Card payment error:", err);
           setLastPayPalError(raw);
-          onError(deriveUserMessage(raw));
-          throw err;
-        }
-      },
-      onApprove: async (data) => {
-        try {
-          lastOrderIdRef.current = data.orderID;
-          setLastOrderId(data.orderID);
-          const capturedId = await captureOrder(data.orderID);
-          onSuccess(capturedId);
-        } catch (err) {
-          const raw = toSafeString(err);
-          console.error("Error capturing card payment:", err);
-          setLastPayPalError(raw);
-          onError(deriveUserMessage(raw));
-        } finally {
           setIsCardProcessing(false);
-        }
-      },
-      onError: (err) => {
-        const raw = toSafeString(err);
-        console.error("Card payment error:", err);
-        setLastPayPalError(raw);
-        setIsCardProcessing(false);
-        onError(deriveUserMessage(raw));
-      },
-      style: {
-        input: {
-          "font-size": "14px",
-          "font-family": "inherit",
-          color: "hsl(var(--foreground))",
+          onError(deriveUserMessage(raw));
         },
-        ".invalid": {
-          color: "hsl(var(--destructive))",
+        style: {
+          input: {
+            "font-size": "14px",
+            "font-family": "inherit",
+            color: "hsl(var(--foreground))",
+          },
+          ".invalid": {
+            color: "hsl(var(--destructive))",
+          },
         },
-      },
-    });
+      });
 
-    // IMPORTANT: `isEligible()` can return false if the merchant isn't enabled *or* if the SDK
-    // isn't fully authorized for Advanced Card Payments in this environment.
-    const eligible = Boolean(cardFields.isEligible());
-    setCardFieldsEligible(eligible);
+      const eligible = Boolean(cardFields.isEligible());
+      console.log(`CardFields eligibility check (attempt ${retryCount + 1}):`, eligible, "clientToken present:", !!paypalClientToken);
+      
+      if (!eligible && retryCount < 2) {
+        // Retry after a short delay - sometimes PayPal SDK needs time to initialize
+        setTimeout(() => attemptCardFields(retryCount + 1), 500);
+        return;
+      }
 
-    if (!eligible) {
-      cardFieldsInstanceRef.current = null;
-      return;
-    }
+      setCardFieldsEligible(eligible);
 
-    cardFieldsInstanceRef.current = cardFields;
+      if (!eligible) {
+        console.warn("PayPal CardFields not eligible. This can happen if Advanced Card Payments is not enabled for the merchant account or if there's a temporary PayPal issue.");
+        cardFieldsInstanceRef.current = null;
+        return;
+      }
+
+      cardFieldsInstanceRef.current = cardFields;
+    };
+
+    attemptCardFields();
 
     return () => {
       cardFieldsInstanceRef.current = null;
     };
-  }, [sdkReady, paymentMethod, createOrder, captureOrder, onSuccess, onError, disabled]);
+  }, [sdkReady, paymentMethod, createOrder, captureOrder, onSuccess, onError, disabled, paypalClientToken]);
 
   // Card Fields: render inputs once eligible + DOM containers exist
   useEffect(() => {
@@ -828,9 +840,45 @@ export function PayPalButton({
       {paymentMethod === "card" && (
         <div className="space-y-4">
           {!cardFieldsEligible && sdkReady && window.paypal?.CardFields && (
-            <div className="text-sm text-foreground bg-muted/50 border border-border rounded-lg p-3">
-              Card payments require PayPal to enable "Advanced Credit and Debit Card Payments" for your account.
-              Please use PayPal instead or contact PayPal support.
+            <div className="text-sm text-foreground bg-muted/50 border border-border rounded-lg p-4 space-y-3">
+              <p>
+                Card payments are temporarily unavailable. This can happen due to a temporary issue with PayPal's Advanced Card Payments service.
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    // Force SDK reload by clearing and re-fetching config
+                    setSdkReady(false);
+                    setIsLoading(true);
+                    const scripts = document.querySelectorAll('script[src*="paypal.com/sdk/js"]');
+                    scripts.forEach(s => s.remove());
+                    // This will trigger the useEffect to reload the SDK
+                    setPayPalClientId(null);
+                    setTimeout(() => {
+                      supabase.functions.invoke("paypal", { body: { action: "config" } })
+                        .then(({ data }) => {
+                          if (data?.clientId) setPayPalClientId(data.clientId);
+                          if (data?.clientToken) setPayPalClientToken(data.clientToken);
+                          if (data?.env) setPayPalEnv(data.env);
+                        })
+                        .catch(console.error);
+                    }, 100);
+                  }}
+                >
+                  Retry Card Payment
+                </Button>
+                <Button
+                  type="button"
+                  variant="default"
+                  size="sm"
+                  onClick={() => setPaymentMethod("paypal")}
+                >
+                  Use PayPal Instead
+                </Button>
+              </div>
             </div>
           )}
 
