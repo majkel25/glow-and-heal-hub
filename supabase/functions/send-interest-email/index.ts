@@ -55,48 +55,48 @@ serve(async (req: Request): Promise<Response> => {
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
       </head>
-      <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 40px 20px;">
+      <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f6f8;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f6f8; padding: 40px 20px;">
           <tr>
             <td align="center">
-              <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-                <!-- Header -->
+              <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);">
+                <!-- Header - Slate Blue -->
                 <tr>
-                  <td style="background-color: #8b7355; padding: 30px; text-align: center;">
-                    <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">MeYounger</h1>
-                    <p style="color: #ffffff; margin: 10px 0 0; font-size: 14px; opacity: 0.9;">Official UK Distributor</p>
+                  <td style="background: linear-gradient(135deg, #5a6f8c 0%, #4a5d78 100%); padding: 35px 30px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600; letter-spacing: 0.5px;">MeYounger</h1>
+                    <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0; font-size: 14px;">Official UK Distributor</p>
                   </td>
                 </tr>
                 
                 <!-- Content -->
                 <tr>
-                  <td style="padding: 40px 30px;">
-                    <h2 style="color: #333333; margin: 0 0 20px; font-size: 22px;">Hi ${name},</h2>
+                  <td style="padding: 45px 35px;">
+                    <h2 style="color: #3d4f5f; margin: 0 0 24px; font-size: 24px; font-weight: 600;">Hi ${name},</h2>
                     
-                    <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">
+                    <p style="color: #4a5568; font-size: 16px; line-height: 1.7; margin: 0 0 20px;">
                       Thank you for registering your interest in our upcoming medical-grade skincare range!
                     </p>
                     
-                    <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">
+                    <p style="color: #4a5568; font-size: 16px; line-height: 1.7; margin: 0 0 20px;">
                       We're working hard to bring you an exceptional selection of professional skincare products. 
                       As soon as they're available, you'll be the first to know.
                     </p>
                     
-                    <div style="background-color: #f8f6f3; border-radius: 8px; padding: 20px; margin: 30px 0;">
-                      <p style="color: #8b7355; font-size: 14px; font-weight: 600; margin: 0 0 10px;">What to expect:</p>
-                      <ul style="color: #666666; font-size: 14px; line-height: 1.8; margin: 0; padding-left: 20px;">
+                    <div style="background-color: #f0f4f8; border-radius: 10px; padding: 24px; margin: 30px 0; border-left: 4px solid #5a6f8c;">
+                      <p style="color: #3d4f5f; font-size: 15px; font-weight: 600; margin: 0 0 12px;">What to expect:</p>
+                      <ul style="color: #4a5568; font-size: 15px; line-height: 2; margin: 0; padding-left: 20px;">
                         <li>Medical-grade formulations</li>
                         <li>Dermatologist-approved products</li>
                         <li>Exclusive launch offers</li>
                       </ul>
                     </div>
                     
-                    <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 0 0 30px;">
+                    <p style="color: #4a5568; font-size: 16px; line-height: 1.7; margin: 0 0 35px;">
                       In the meantime, explore our other ranges including F+NCTION supplements and Sedona Wellness devices.
                     </p>
                     
                     <div style="text-align: center;">
-                      <a href="https://meyounger.lovable.app/#products" style="display: inline-block; background-color: #8b7355; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-size: 14px; font-weight: 600;">
+                      <a href="https://meyounger.lovable.app/#products" style="display: inline-block; background: linear-gradient(135deg, #5a6f8c 0%, #4a5d78 100%); color: #ffffff; text-decoration: none; padding: 18px 40px; border-radius: 10px; font-size: 16px; font-weight: 600; letter-spacing: 0.3px;">
                         Shop F+NCTION Supplements
                       </a>
                     </div>
@@ -105,11 +105,11 @@ serve(async (req: Request): Promise<Response> => {
                 
                 <!-- Footer -->
                 <tr>
-                  <td style="background-color: #f8f6f3; padding: 30px; text-align: center;">
-                    <p style="color: #999999; font-size: 12px; margin: 0 0 10px;">
+                  <td style="background-color: #f0f4f8; padding: 30px; text-align: center;">
+                    <p style="color: #5a6f8c; font-size: 13px; font-weight: 500; margin: 0 0 8px;">
                       MeYounger - Official UK Distributor
                     </p>
-                    <p style="color: #999999; font-size: 12px; margin: 0;">
+                    <p style="color: #718096; font-size: 12px; margin: 0;">
                       48 Warwick Way, London, SW1V 1RY
                     </p>
                   </td>
